@@ -1,5 +1,5 @@
 import { resolveMascot, slotTitle } from "../render/renderer";
-import type { Frame, ParsedScript, SlotRef } from "../dsl/types";
+import type { Beat, Frame, ParsedScript, SlotRef } from "../dsl/types";
 
 export const pad3 = (n: number) => String(n).padStart(3, "0");
 
@@ -37,6 +37,14 @@ function slotJSON(ref: SlotRef | null, script: ParsedScript) {
   };
 }
 
+const imagesOf = (script: ParsedScript, b: Beat) => script.frames.slice(b.firstFrame, b.firstFrame + b.frameCount);
+
+function imageRange(script: ParsedScript, b: Beat): string {
+  const fs = imagesOf(script, b);
+  if (fs.length === 1) return `imagen \`${frameFileName(fs[0])}\``;
+  return `imágenes \`${frameFileName(fs[0])}\` → \`${frameFileName(fs.at(-1)!)}\` (${fs.length})`;
+}
+
 /** Guion de narración pensado para que otra IA (voz / LLM) lo lea sin ambigüedad. */
 export function toNarrationMarkdown(script: ParsedScript): string {
   const m = script.meta;
@@ -44,84 +52,101 @@ export function toNarrationMarkdown(script: ParsedScript): string {
   out.push(`# Guion de narración — ${m.titulo}`, "");
   out.push(`- **Idioma:** ${m.idioma}`);
   if (m.voz) out.push(`- **Voz / tono:** ${m.voz}`);
-  out.push(`- **Líneas:** ${script.frames.length} · **Duración estimada:** ${fmtTime(script.totalDuration)} (ritmo ${m.ritmo} palabras/seg)`);
+  out.push(
+    `- **Líneas de voz:** ${script.beats.length} · **Imágenes:** ${script.frames.length} · **Duración estimada:** ${fmtTime(script.totalDuration)} (ritmo ${m.ritmo} palabras/seg)`,
+  );
   for (const [k, v] of Object.entries(m.otros)) out.push(`- **${k}:** ${v}`);
   out.push("");
   out.push("## Instrucciones para la IA de voz", "");
-  out.push("1. Narra el texto **en el orden exacto** de las líneas. Cada línea corresponde a una imagen del video.");
+  out.push("1. Narra el texto **en el orden exacto** de las líneas.");
   out.push("2. Lo que está entre corchetes `[ ]` es dirección de interpretación (emoción, pausas, énfasis). **No lo leas en voz alta**; aplícalo.");
   out.push("3. `[pausa 0.5]` = silencio de medio segundo. Entre líneas deja una micro‑pausa natural, salvo que la línea continúe la frase anterior (sin puntuación final).");
   out.push("4. No agregues, resumas ni traduzcas contenido. Respeta la puntuación como guía de entonación.");
   out.push("");
   out.push("## Texto continuo (para pegar directo en el generador de voz)", "");
   out.push("```text");
-  out.push(script.frames.map((f) => f.narration).filter(Boolean).join(" "));
+  out.push(script.beats.map((b) => b.narration).filter(Boolean).join(" "));
   out.push("```", "");
   out.push("## Líneas sincronizadas con imágenes", "");
+  out.push("_Cada línea de voz se muestra como una o más imágenes; el rótulo central va apareciendo en trozos mientras se narra._", "");
   let scene = -1;
-  for (const f of script.frames) {
-    if (f.sceneIndex !== scene) {
-      scene = f.sceneIndex;
-      out.push(`### Escena ${scene + 1}: ${f.scene}`, "");
+  for (const b of script.beats) {
+    if (b.sceneIndex !== scene) {
+      scene = b.sceneIndex;
+      out.push(`### Escena ${scene + 1}: ${b.scene}`, "");
     }
-    out.push(`**${pad3(f.index + 1)}** · \`${fmtTime(f.start)} → ${fmtTime(f.start + f.duration)}\` · imagen \`${frameFileName(f)}\``);
-    out.push(`> ${f.narration || "(sin narración)"}`);
-    if (f.note) out.push(`> _Nota de dirección: ${f.note}_`);
+    out.push(`**Línea ${pad3(b.index + 1)}** · \`${fmtTime(b.start)} → ${fmtTime(b.start + b.duration)}\` · ${imageRange(script, b)}`);
+    out.push(`> ${b.narration || "(sin narración)"}`);
+    const caps = imagesOf(script, b).map((f) => f.caption).filter(Boolean);
+    if (caps.length > 1) out.push(`> _Rótulo:_ ${caps.map((c) => `«${c}»`).join(" · ")}`);
+    if (b.note) out.push(`> _Nota de dirección: ${b.note}_`);
     out.push("");
   }
   return out.join("\n");
 }
 
 export function toPlainText(script: ParsedScript): string {
-  return script.frames.map((f) => f.narration).filter(Boolean).join("\n");
+  return script.beats.map((b) => b.narration).filter(Boolean).join("\n");
 }
 
-export function toSRT(script: ParsedScript): string {
-  return script.frames
-    .filter((f) => f.clean)
-    .map((f, i) => `${i + 1}\n${fmtTime(f.start, true)} --> ${fmtTime(f.start + f.duration, true)}\n${f.subtitle ?? f.clean}\n`)
-    .join("\n");
+/** Subtítulos: una entrada por línea de voz (o por trozo del rótulo con porTrozo). */
+export function toSRT(script: ParsedScript, porTrozo = false): string {
+  const items = porTrozo
+    ? script.frames.filter((f) => f.caption).map((f) => ({ start: f.start, end: f.start + f.duration, text: f.caption! }))
+    : script.beats.filter((b) => b.clean).map((b) => ({ start: b.start, end: b.start + b.duration, text: b.subtitle ?? b.clean }));
+  return items.map((it, i) => `${i + 1}\n${fmtTime(it.start, true)} --> ${fmtTime(it.end, true)}\n${it.text}\n`).join("\n");
 }
 
 export function toTimeline(script: ParsedScript) {
   return {
-    formato: "versus-guion/1",
+    formato: "versus-guion/2",
     proyecto: {
       titulo: script.meta.titulo,
       idioma: script.meta.idioma,
       voz: script.meta.voz,
       ritmo_palabras_seg: script.meta.ritmo,
+      palabras_por_trozo: script.meta.palabras,
       resolucion: `${script.meta.ancho}x${script.meta.alto}`,
       ...script.meta.otros,
     },
     instrucciones_voz:
-      "Narra 'narracion' de cada fotograma en orden. Lo que va entre [corchetes] son direcciones de interpretación y no se leen. 'texto_limpio' es lo que efectivamente se dice.",
+      "Narra 'narracion' de cada línea en orden. Lo que va entre [corchetes] son direcciones de interpretación y no se leen. 'texto_limpio' es lo que efectivamente se dice. Cada línea tiene una o más imágenes que se muestran en secuencia mientras se narra.",
     duracion_total_seg: script.totalDuration,
-    escenas: script.scenes.map((s) => ({ n: s.index + 1, titulo: s.title, primer_fotograma: s.firstFrame + 1, fotogramas: s.frameCount })),
+    escenas: script.scenes.map((s) => ({ n: s.index + 1, titulo: s.title, primera_imagen: s.firstFrame + 1, imagenes: s.frameCount })),
     sujetos: Object.values(script.subjects).map((s) => ({ id: s.id, titulo: s.title.replace(/\n/g, " "), descripcion_imagen: s.prompt ?? null, archivo: s.file ?? null })),
-    fotogramas: script.frames.map((f) => ({
-      n: f.index + 1,
-      imagen: frameFileName(f),
-      escena: f.scene,
-      inicio_seg: f.start,
-      duracion_seg: f.duration,
-      duracion_fija: f.explicitDuration,
-      narracion: f.narration,
-      texto_limpio: f.clean,
-      subtitulo: f.subtitle,
-      nota_direccion: f.note,
-      visual: {
-        A: slotJSON(f.state.A, script),
-        B: f.state.layout === "centro" ? null : slotJSON(f.state.B, script),
-        layout: f.state.layout,
-        foco: f.state.focus,
-        muneco: f.state.mascot ? { ...resolveMascot(f.state.mascot, script), def: undefined, valor: f.state.mascot } : null,
-        texto: f.state.caption,
-        extras: Object.values(f.state.extras).map((e) => ({ id: e.id, texto: e.text })),
-      },
-    })),
+    lineas: script.beats.map((b) => {
+      const st = script.frames[b.firstFrame]?.state;
+      return {
+        n: b.index + 1,
+        escena: b.scene,
+        inicio_seg: b.start,
+        duracion_seg: b.duration,
+        duracion_fija: b.explicitDuration,
+        narracion: b.narration,
+        texto_limpio: b.clean,
+        subtitulo: b.subtitle,
+        nota_direccion: b.note,
+        visual: st && {
+          A: slotJSON(st.A, script),
+          B: st.layout === "centro" ? null : slotJSON(st.B, script),
+          layout: st.layout,
+          foco: st.focus,
+          muneco: st.mascot ? { ...resolveMascot(st.mascot, script), def: undefined, valor: st.mascot } : null,
+          efectos: st.effects.map((e) => e.name),
+          extras: Object.values(st.extras).map((e) => ({ id: e.id, texto: e.text })),
+        },
+        imagenes: imagesOf(script, b).map((f) => ({
+          n: f.index + 1,
+          archivo: frameFileName(f),
+          rotulo: f.caption,
+          inicio_seg: f.start,
+          duracion_seg: f.duration,
+        })),
+      };
+    }),
   };
 }
+
 
 /** Lista de recursos visuales a producir / generar con IA de imagen. */
 export function toImageList(script: ParsedScript, assets: Record<string, string>): string {

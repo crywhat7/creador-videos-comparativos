@@ -53,6 +53,23 @@ export interface Template {
   };
   foco: { opacidad: number };
   extra: { fuente: FontKey; tam: number; peso: number; color: string };
+  efectos: {
+    lineasColor: string;
+    lineasCantidad: number;
+    lineasHueco: number;
+    lineasGrosor: number;
+    velocidadColor: string;
+    destelloColor: string;
+    destelloTrazo: string;
+    bordeColor: string;
+    bordeGrosor: number;
+    bordeRadio: number;
+    vinetaColor: string;
+    vinetaFuerza: number;
+    tramaColor: string;
+    temblorFuerza: number;
+    zoomPaso: number;
+  };
 }
 
 export const DEFAULT_TEMPLATE: Template = {
@@ -80,6 +97,23 @@ export const DEFAULT_TEMPLATE: Template = {
   },
   foco: { opacidad: 0.25 },
   extra: { fuente: "montserrat", tam: 60, peso: 800, color: "#111111" },
+  efectos: {
+    lineasColor: "#111111",
+    lineasCantidad: 120,
+    lineasHueco: 0.62,
+    lineasGrosor: 1,
+    velocidadColor: "#111111",
+    destelloColor: "#ffd23f",
+    destelloTrazo: "#111111",
+    bordeColor: "#c62828",
+    bordeGrosor: 24,
+    bordeRadio: 0,
+    vinetaColor: "#000000",
+    vinetaFuerza: 0.35,
+    tramaColor: "#111111",
+    temblorFuerza: 1,
+    zoomPaso: 0.035,
+  },
 };
 
 export function cloneTemplate(t: Template): Template {
@@ -108,6 +142,8 @@ const GROUP_ALIASES: Record<string, string> = {
   sub: "subtitulo",
   subtitulos: "subtitulo",
   fondo: "lienzo",
+  efecto: "efectos",
+  fx: "efectos",
 };
 
 /** Aplica overrides tipo "titulos.tam" = "80" sobre una copia de la plantilla. */

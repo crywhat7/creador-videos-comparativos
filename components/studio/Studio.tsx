@@ -12,6 +12,7 @@ import { resolveMascot, slotTitle, type RenderContext } from "@/lib/render/rende
 import { loadAssets, loadProject, putAsset, saveProject } from "@/lib/storage";
 import { AssetsPanel } from "./AssetsPanel";
 import { DesignPanel } from "./DesignPanel";
+import { EffectsPanel } from "./EffectsPanel";
 import { Editor, type EditorHandle } from "./Editor";
 import { ExportPanel } from "./ExportPanel";
 import { FrameCanvas } from "./FrameCanvas";
@@ -20,6 +21,7 @@ import { LanguagePanel } from "./LanguagePanel";
 const TABS = [
   { id: "fotograma", label: "Fotograma" },
   { id: "recursos", label: "Recursos" },
+  { id: "efectos", label: "Efectos" },
   { id: "diseno", label: "Diseño" },
   { id: "exportar", label: "Exportar" },
   { id: "lenguaje", label: "Lenguaje" },
@@ -27,8 +29,9 @@ const TABS = [
 type Tab = (typeof TABS)[number]["id"];
 
 const SNIPPETS: { label: string; text: string }[] = [
-  { label: "Escena", text: "\n== Nueva escena\nA: \nB: \nmuneco: apunta-izq feliz\ntexto: \n> " },
-  { label: "Fotograma", text: "> " },
+  { label: "Escena", text: "\n== Nueva escena\nA: \nB: \nmuneco: apunta-izq feliz\n> " },
+  { label: "Línea", text: "> " },
+  { label: "Efecto", text: "efecto: lineas-anime" },
   { label: "Sujeto", text: 'sujeto id "Título"\n  imagen: descripción para generar la imagen, fondo blanco' },
   { label: "Extra", text: 'extra dato: "TEXTO" (x:50, y:12, tam:56, color:acento)' },
 ];
@@ -225,7 +228,7 @@ export default function Studio() {
               onChange={setSource}
               onCursorLine={(l) => {
                 const i = frameAtLine(frames, l);
-                if (i >= 0 && i !== current) setSelected(i);
+                if (i >= 0 && frames[i].line !== frame?.line) setSelected(i);
               }}
               diagnostics={diagnostics}
               frames={frames}
@@ -270,6 +273,12 @@ export default function Studio() {
             <div className="flex items-baseline gap-2">
               <span className="font-display text-[56px] leading-[0.8] tracking-[-0.03em] tabular-nums">{String(current + 1).padStart(2, "0")}</span>
               <span className="font-display text-[22px] text-faint italic tabular-nums">/ {String(frames.length).padStart(2, "0")}</span>
+              {frame && (
+                <span className="ml-3 self-center rounded-full border border-line px-2.5 py-0.5 text-[11px] text-muted tabular-nums">
+                  línea {frame.beat + 1}/{script.beats.length}
+                  {frame.chunkCount > 1 && <span className="text-accent"> · trozo {frame.chunkIndex + 1}/{frame.chunkCount}</span>}
+                </span>
+              )}
             </div>
             <div className="text-right">
               <p className="text-[11px] uppercase tracking-[0.18em] text-faint">Escena {frame ? frame.sceneIndex + 1 : "–"}</p>
@@ -313,11 +322,12 @@ export default function Studio() {
           </div>
 
           {/* Tira de fotogramas */}
-          <div ref={strip} className="flex h-[132px] shrink-0 gap-2 overflow-x-auto border-t border-line px-4 py-3">
+          <div ref={strip} className="flex h-[132px] shrink-0 gap-3 overflow-x-auto border-t border-line px-4 py-3">
             {frames.map((f) => {
               const newScene = f.index === 0 || frames[f.index - 1].sceneIndex !== f.sceneIndex;
+              const sameBeat = f.chunkIndex > 0;
               return (
-                <div key={f.index} className="flex shrink-0 items-stretch gap-2">
+                <div key={f.index} className={`flex shrink-0 items-stretch gap-2 ${sameBeat ? "-ml-1.5" : ""}`}>
                   {newScene && f.index > 0 && <span className="w-px self-stretch bg-line-strong" aria-hidden />}
                   <button
                     type="button"
@@ -369,6 +379,7 @@ export default function Studio() {
                 onReveal={(l) => editor.current?.revealLine(l)}
               />
             )}
+            {tab === "efectos" && <EffectsPanel frame={frame} rc={rc} version={version} onInsert={(t) => editor.current?.insert(t)} />}
             {tab === "diseno" && (
               <DesignPanel template={template} onChange={setTemplate} placeholders={placeholders} onPlaceholders={setPlaceholders} overrides={script.globalStyle} />
             )}
@@ -424,9 +435,10 @@ function FrameInfo({ frame, rc, onReveal }: { frame: Frame | null; rc: RenderCon
   const rows: [string, React.ReactNode][] = [
     ["A", st.A ? slotTitle(st.A, rc.script).replace(/\n/g, " ") : "—"],
     ["B", st.layout === "centro" ? "(layout centro)" : st.B ? slotTitle(st.B, rc.script).replace(/\n/g, " ") : "—"],
-    ["Rótulo", st.caption ?? "—"],
+    ["Rótulo", frame.caption ? `«${frame.caption}»${frame.chunkCount > 1 ? ` (trozo ${frame.chunkIndex + 1}/${frame.chunkCount})` : ""}${st.captionMode === "fijo" ? " · fijo" : ""}` : "—"],
     ["Muñeco", m ? `${m.base} · ${m.face}` : "—"],
     ["Foco", st.focus],
+    ["Efectos", st.effects.map((e) => e.name).join(", ") || "—"],
     ["Extras", Object.values(st.extras).map((e) => e.text).join(", ") || "—"],
   ];
   if (Object.keys(st.style).length) rows.push(["Estilo", Object.entries(st.style).map(([k, v]) => `${k}=${v}`).join(", ")]);
@@ -452,7 +464,7 @@ function FrameInfo({ frame, rc, onReveal }: { frame: Frame | null; rc: RenderCon
       <dl className="grid grid-cols-3 gap-2">
         {[
           ["Inicio", fmtTime(frame.start)],
-          ["Duración", `${frame.duration.toFixed(1)}s`],
+          ["Imagen", `${frame.duration.toFixed(2)}s`],
           ["Palabras", String(frame.clean.split(/\s+/).filter(Boolean).length)],
         ].map(([k, v]) => (
           <div key={k} className="rounded-xl bg-panel-2 px-3 py-2">

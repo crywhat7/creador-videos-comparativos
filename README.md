@@ -24,18 +24,17 @@ sujeto misil "Missile"
 A: misil
 B: cohete
 muneco: apunta-izq feliz
-texto: change its direction
 foco: A
 > A missile can change its direction to follow
-texto: while a rocket
 muneco: apunta-der feliz
 foco: B
 > while a rocket flies straight after it's launched
 ```
 
-- Cada línea `>` = un fotograma (imagen + línea de narración).
+- Cada línea `>` = una línea de voz. El rótulo del centro la muestra en trozos tipo karaoke (`@palabras 3`); cada trozo es una imagen. ` / ` marca cortes manuales.
 - Las propiedades (`A:`, `B:`, `muneco:`, `texto:`, `foco:`…) **persisten** hasta que las cambies.
 - `[curioso]`, `[pausa 0.5]` = dirección de voz (no se lee ni se ve). `| texto` = subtítulo distinto. `{2s, sin-sub}` = opciones del fotograma.
+- `efecto: lineas-anime, temblor` agrega efectos estilo anime (líneas, impacto, borde, viñeta, trama, temblor, zoom).
 - `@estilo grupo.clave valor` cambia cualquier parte de la plantilla (tamaños, posiciones, fuentes, colores).
 
 La referencia completa está en la pestaña **Lenguaje** del estudio.

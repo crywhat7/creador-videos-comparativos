@@ -13,6 +13,7 @@ const GROUP_LABELS: Record<string, string> = {
   subtitulo: "Subtítulo",
   foco: "Foco",
   extra: "Textos extra",
+  efectos: "Efectos",
 };
 
 const KEY_LABELS: Record<string, string> = {
@@ -47,9 +48,30 @@ const KEY_LABELS: Record<string, string> = {
   padX: "Relleno X",
   padY: "Relleno Y",
   alineacion: "Alineación",
+  lineasColor: "Líneas: color",
+  lineasCantidad: "Líneas: cantidad",
+  lineasHueco: "Líneas: hueco",
+  lineasGrosor: "Líneas: grosor",
+  velocidadColor: "Velocidad",
+  destelloColor: "Impacto: relleno",
+  destelloTrazo: "Impacto: trazo",
+  bordeColor: "Borde: color",
+  bordeGrosor: "Borde: grosor",
+  bordeRadio: "Borde: radio",
+  vinetaColor: "Viñeta: color",
+  vinetaFuerza: "Viñeta: fuerza",
+  tramaColor: "Trama",
+  temblorFuerza: "Temblor",
+  zoomPaso: "Zoom: paso",
 };
 
 function range(key: string): [number, number, number] {
+  if (key === "lineasCantidad") return [10, 300, 1];
+  if (key === "lineasHueco") return [0.2, 1.2, 0.01];
+  if (key === "lineasGrosor" || key === "temblorFuerza") return [0.2, 4, 0.1];
+  if (key === "vinetaFuerza") return [0, 1, 0.05];
+  if (key === "zoomPaso") return [0, 0.2, 0.005];
+  if (key === "bordeGrosor" || key === "bordeRadio") return [0, 120, 1];
   if (key === "peso") return [100, 900, 100];
   if (key === "tam") return [10, 220, 1];
   if (key === "interlineado") return [0.7, 2, 0.02];
@@ -144,7 +166,7 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                   if (typeof v === "number") {
                     const [min, max, step] = range(k);
                     return (
-                      <div key={k} className="grid grid-cols-[96px_1fr_56px] items-center gap-2">
+                      <div key={k} className="grid grid-cols-[104px_1fr_56px] items-center gap-2">
                         {label}
                         <input id={id} type="range" className="rng" min={min} max={max} step={step} value={v} onChange={(e) => set(g, k, parseFloat(e.target.value))} />
                         <input
@@ -168,7 +190,7 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                   }
                   if (k === "fuente") {
                     return (
-                      <div key={k} className="grid grid-cols-[96px_1fr] items-center gap-2">
+                      <div key={k} className="grid grid-cols-[104px_1fr] items-center gap-2">
                         {label}
                         <select
                           id={id}
@@ -187,7 +209,7 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                   }
                   if (k === "alineacion") {
                     return (
-                      <div key={k} className="grid grid-cols-[96px_1fr] items-center gap-2">
+                      <div key={k} className="grid grid-cols-[104px_1fr] items-center gap-2">
                         {label}
                         <div className="flex gap-1">
                           {["izq", "centro"].map((a) => (
@@ -205,7 +227,7 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                     );
                   }
                   return (
-                    <div key={k} className="grid grid-cols-[96px_26px_1fr] items-center gap-2">
+                    <div key={k} className="grid grid-cols-[104px_26px_1fr] items-center gap-2">
                       {label}
                       <input
                         id={id}

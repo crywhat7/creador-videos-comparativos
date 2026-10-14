@@ -1,16 +1,19 @@
 export const SAMPLE_SCRIPT = `# ─────────────────────────────────────────────
 #  VSL · Lenguaje de guion para videos "Versus"
-#  Cada línea que empieza con  >  es UN fotograma
-#  (una imagen + una línea de narración).
+#  Cada línea que empieza con  >  es una línea
+#  de voz. El rótulo del centro la va mostrando
+#  en trozos (tipo karaoke): cada trozo es una
+#  imagen del video.
 #  Todo lo demás "persiste": lo que no cambies,
-#  se mantiene en los siguientes fotogramas.
+#  se mantiene en las siguientes imágenes.
 # ─────────────────────────────────────────────
 
-@titulo  Missile vs Rocket
-@idioma  en
-@voz     Narrador masculino, curioso y cercano. Ritmo ágil de Shorts.
-@ritmo   2.6
-@formato 1080x1920
+@titulo   Missile vs Rocket
+@idioma   en
+@voz      Narrador masculino, curioso y cercano. Ritmo ágil de Shorts.
+@ritmo    2.6
+@palabras 3        # palabras máximas por trozo del rótulo
+@formato  1080x1920
 
 # ── Sujetos: lo que puede ir en A o en B ──
 sujeto misil "Missile"
@@ -41,28 +44,25 @@ pose senala-b: apunta-der feliz
 A: hiper
 B: super
 muneco: duda duda
-texto: What's the difference?
+efecto: lineas-anime
 > [curioso] What's the difference?
 
+efecto: -
 nota: Pausa dramática antes de responder
 muneco: senala-a
-texto: flies faster than
-> [pausa 0.3] A supersonic missile flies faster than the speed of sound
+> [pausa 0.3] A supersonic missile / flies faster than / the speed of sound
 
 == Supersónico
 muneco: apunta-der picaro
-texto: supersonic missile.
 > This is a supersonic missile
 
 == Misil vs cohete
 A: misil
 B: cohete
 muneco: senala-a
-texto: change its direction
 foco: A
 > A missile can change its direction to follow
 
-texto: while a rocket
 muneco: senala-b
 foco: B
 > while a rocket flies straight after it's launched
@@ -71,20 +71,21 @@ foco: ambos
 muneco: apunta-der picaro
 texto: This is a rocket.
 sub: off
-> This is a rocket. {1.8s}
+> This is a rocket. {1.8s, efecto:destello}
 sub: on
+texto: auto
 
 == Tipos de misil
 A: crucero
 B: -
 muneco: apunta-izq picaro
-texto: This is a cruise missile.
 > This is a cruise missile
 
 B: balistico
 muneco: apunta-der picaro
-texto: This is a ballistic missile.
+efecto: velocidad, zoom
 extra velocidad: "MACH 20+" (x:78, y:47, tam:44, color:acento, rot:-6)
 > This is a ballistic missile [énfasis]
 extra velocidad: -
+efecto: -
 `;

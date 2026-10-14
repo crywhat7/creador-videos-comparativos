@@ -1,4 +1,4 @@
-import { BUILTIN_POSES, FACES } from "./parser";
+import { BUILTIN_POSES, EFFECTS, FACES } from "./parser";
 import { styleKeys } from "./template";
 
 export interface SpecEntry {
@@ -17,7 +17,7 @@ export const SPEC: SpecSection[] = [
   {
     title: "La idea",
     intro:
-      "Un guion VSL es una lista de fotogramas. Cada línea que empieza con > produce UNA imagen y UNA línea de narración. Las propiedades (A:, B:, muneco:, texto:…) describen lo que se ve y persisten hasta que las cambies, así que para repetir la misma imagen con otro subtítulo basta con escribir otra línea >.",
+      "Un guion VSL es una lista de líneas de voz. Cada línea que empieza con > es una frase narrada; el rótulo grande del centro la va mostrando en trozos cortos (tipo karaoke) y cada trozo es UNA imagen del video. Las propiedades (A:, B:, muneco:, efecto:…) describen lo que se ve y persisten hasta que las cambies.",
     entries: [],
   },
   {
@@ -27,6 +27,7 @@ export const SPEC: SpecSection[] = [
       { syntax: "@idioma es", desc: "Idioma de la narración (es, en, pt…)." },
       { syntax: "@voz descripción", desc: "Tono y casting para la IA de voz." },
       { syntax: "@ritmo 2.6", desc: "Palabras por segundo para estimar duraciones." },
+      { syntax: "@palabras 3", desc: "Palabras máximas por trozo del rótulo central (karaoke)." },
       { syntax: "@formato 1080x1920", desc: "Resolución de exportación." },
       { syntax: "@estilo clave valor", desc: "Sobrescribe la plantilla para todo el guion.", example: "@estilo titulos.tam 90" },
       { syntax: "@cualquiera valor", desc: "Metadato libre; se exporta tal cual (ej: @canal, @cta)." },
@@ -51,11 +52,12 @@ export const SPEC: SpecSection[] = [
     title: "Escenas y fotogramas",
     entries: [
       { syntax: "== Título de escena", desc: "Agrupa fotogramas. No borra el estado visual." },
-      { syntax: "> narración", desc: "Un fotograma. El subtítulo muestra la narración sin etiquetas." },
+      { syntax: "> narración", desc: "Una línea de voz. Se corta sola en trozos de @palabras; cada trozo es una imagen. El subtítulo de abajo muestra la frase completa." },
+      { syntax: "> trozo uno / trozo dos / tres", desc: "Cortes manuales del rótulo: cada ' / ' (con espacios) inicia una imagen nueva. La barra no se lee ni se ve." },
       { syntax: "> narración | subtítulo", desc: "Subtítulo distinto a lo que se narra." },
       { syntax: "> texto [emoción] [pausa 0.5]", desc: "Etiquetas de voz: la IA las interpreta, no se leen ni se ven." },
-      { syntax: "> texto {2.5s, sin-sub}", desc: "Opciones solo para este fotograma: duración fija y/o ocultar subtítulo." },
-      { syntax: "nota: texto", desc: "Nota de dirección para el siguiente fotograma (no se ve)." },
+      { syntax: "> texto {2.5s, sin-sub, entero, palabras:2, efecto:destello}", desc: "Opciones solo para esta línea: duración fija, ocultar subtítulo, no cortar el rótulo, trozos de otro tamaño, efecto puntual (varios con +)." },
+      { syntax: "nota: texto", desc: "Nota de dirección para la siguiente línea (no se ve)." },
       { syntax: "limpiar", desc: "Vacía todo el estado visual." },
     ],
   },
@@ -64,7 +66,9 @@ export const SPEC: SpecSection[] = [
     entries: [
       { syntax: "A: id | B: id", desc: 'Sujeto en el lado izquierdo / derecho. "-" lo vacía. A: id "Otro título" sobrescribe el título; A: "Texto" usa un título suelto.' },
       { syntax: "muneco: pose [cara]", desc: '"-" lo oculta.', example: "muneco: apunta-der picaro" },
-      { syntax: "texto: frase", desc: "Rótulo grande sobre el muñeco." },
+      { syntax: "texto: auto | frase | -", desc: "Rótulo grande del centro. auto (por defecto) = la narración en trozos tipo karaoke. Una frase = texto fijo (una imagen por línea). - = sin rótulo." },
+      { syntax: "palabras: 2", desc: "Cambia el tamaño de los trozos desde aquí." },
+      { syntax: "efecto: lineas-anime, temblor", desc: "Efectos visuales (persisten). - los quita. Ver sección Efectos." },
       { syntax: "foco: A | B | ambos | ninguno", desc: "Atenúa el lado que no está en foco." },
       { syntax: "layout: duo | centro", desc: "centro = un solo sujeto (A) grande al medio." },
       { syntax: "sub: on | off", desc: "Mostrar u ocultar subtítulos desde aquí." },
@@ -74,6 +78,12 @@ export const SPEC: SpecSection[] = [
     ],
   },
 ];
+
+SPEC.push({
+  title: "Efectos",
+  intro: "Se combinan con comas y aceptan opciones entre paréntesis. Los colores e intensidades por defecto se cambian en Diseño → Efectos o con @estilo efectos.clave valor.",
+  entries: EFFECTS.map((e) => ({ syntax: e.example, desc: `${e.label}: ${e.desc}` })),
+});
 
 export function specAsMarkdown(): string {
   const out: string[] = ["# VSL — lenguaje de guion para videos comparativos", ""];
@@ -96,10 +106,11 @@ export function llmPrompt(sample: string): string {
 Escribe el guion en el lenguaje VSL descrito abajo. Devuelve SOLO el guion VSL, sin explicaciones.
 
 Reglas de estilo:
-- Cada línea ">" es una imagen en pantalla: frases cortas (6 a 14 palabras), una idea por línea.
-- Reutiliza la misma composición (A/B) en varias líneas seguidas y solo cambia el subtítulo, el rótulo (texto:) o la pose del muñeco.
+- Cada línea ">" es una frase de voz (6 a 14 palabras). El rótulo central la muestra sola en trozos tipo karaoke; NO escribas texto: salvo que quieras un rótulo fijo.
+- Si un corte automático queda raro, marca los trozos con " / " (ej: > A missile can / change its direction / to follow).
+- Reutiliza la misma composición (A/B) en varias líneas seguidas y solo cambia la pose del muñeco, el foco o los efectos.
+- Usa efectos para picos de atención (gancho, revelación, dato fuerte), no en todas las líneas.
 - Usa foco: para dirigir la atención al lado del que se habla, y una pose que apunte hacia ese lado (apunta-izq = A, apunta-der = B).
-- El rótulo (texto:) es un fragmento clave de 2 a 5 palabras de lo que se narra.
 - Define cada sujeto con un prompt de imagen claro: objeto completo, diagonal, fondo blanco, sin texto.
 - Usa etiquetas de voz [curioso] [énfasis] [pausa 0.4] con moderación.
 

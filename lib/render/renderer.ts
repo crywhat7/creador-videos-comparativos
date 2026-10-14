@@ -1,6 +1,7 @@
 import { applyOverrides, resolveColor, type FontKey, type Template } from "../dsl/template";
 import type { Frame, ParsedScript, SlotRef, Subject } from "../dsl/types";
 import { getImage, imageFailed } from "./images";
+import { applyCameraEffects, drawBurst, drawOverlayEffects, findEffect } from "./effects";
 import { mascotDataURL } from "./mascot";
 
 export interface RenderContext {
@@ -120,6 +121,9 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
   }
   const st = frame.state;
   const script = rc.script;
+  const seed = frame.index + 1;
+  ctx.save();
+  applyCameraEffects(ctx, st.effects, t, W, H, seed, frame.chunkIndex);
 
   // ── Slots A / B
   const slots: { key: "A" | "B"; ref: SlotRef | null; x: number; scale: number }[] =
@@ -195,16 +199,21 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
     }
   }
 
-  // ── Texto principal (rótulo)
-  if (st.caption) {
+  // ── Rótulo central (trozo de la narración en modo auto, o texto fijo)
+  if (frame.caption) {
     const ts = t.texto.tam * s;
     ctx.font = `${t.texto.peso} ${ts}px ${font(t.texto.fuente, "montserrat")}`;
     ctx.letterSpacing = `${t.texto.tracking * s}px`;
-    ctx.fillStyle = resolveColor(t.texto.color, t, "#111");
     ctx.textAlign = "center";
-    const lines = wrap(ctx, st.caption, t.texto.anchoMax * s);
+    const lines = wrap(ctx, frame.caption, t.texto.anchoMax * s);
     const lh = ts * t.texto.interlineado;
     const top = t.texto.y * sy - ((lines.length - 1) * lh) / 2;
+    const burst = findEffect(st.effects, "destello");
+    if (burst) {
+      const mw = Math.max(...lines.map((l) => ctx.measureText(l).width));
+      drawBurst(ctx, burst, t, W / 2, t.texto.y * sy, mw, lines.length * lh, s, seed);
+    }
+    ctx.fillStyle = resolveColor(t.texto.color, t, "#111");
     lines.forEach((l, i) => ctx.fillText(l, W / 2, top + i * lh));
     ctx.letterSpacing = "0px";
   }
@@ -232,6 +241,9 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
     lines.forEach((l, i) => ctx.fillText(l, 0, y0 + i * lh));
     ctx.restore();
   }
+
+  ctx.restore(); // fin de temblor / zoom
+  drawOverlayEffects(ctx, st.effects, t, W, H, seed);
 
   // ── Subtítulo
   if (frame.subtitle) {

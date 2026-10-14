@@ -44,6 +44,11 @@ export interface ExtraText {
   bg?: string;
 }
 
+export interface Effect {
+  name: string;
+  opts: Record<string, string>;
+}
+
 export interface SlotRef {
   subjectId?: string;
   title?: string; // título sobrescrito o literal
@@ -51,27 +56,54 @@ export interface SlotRef {
 
 export type Focus = "A" | "B" | "ambos" | "ninguno";
 export type Layout = "duo" | "centro";
+/** auto = el rótulo central muestra la narración en trozos (karaoke) */
+export type CaptionMode = "auto" | "fijo" | "off";
 
 export interface VisualState {
   A: SlotRef | null;
   B: SlotRef | null;
   mascot: string | null; // "apunta-izq feliz" o alias de pose
-  caption: string | null;
+  captionMode: CaptionMode;
+  caption: string | null; // texto fijo cuando captionMode = "fijo"
+  words: number; // palabras máximas por trozo en modo auto
   focus: Focus;
   subs: boolean;
   extras: Record<string, ExtraText>;
+  effects: Effect[];
   background: string | null;
   layout: Layout;
   style: Record<string, string>;
 }
 
-export interface Frame {
-  index: number; // 0-based
+/** Una línea de narración ( > ... ). Puede producir varias imágenes. */
+export interface Beat {
+  index: number;
   line: number;
   scene: string;
   sceneIndex: number;
   narration: string; // con etiquetas de voz [..]
   clean: string; // sin etiquetas
+  subtitle: string | null;
+  duration: number;
+  start: number;
+  explicitDuration: boolean;
+  note: string | null;
+  firstFrame: number;
+  frameCount: number;
+}
+
+/** Una imagen del video. */
+export interface Frame {
+  index: number; // 0-based
+  line: number;
+  scene: string;
+  sceneIndex: number;
+  beat: number;
+  chunkIndex: number;
+  chunkCount: number;
+  caption: string | null; // texto central resuelto para esta imagen
+  narration: string;
+  clean: string;
   subtitle: string | null;
   duration: number;
   start: number;
@@ -93,6 +125,7 @@ export interface Meta {
   idioma: string;
   voz: string;
   ritmo: number; // palabras por segundo
+  palabras: number; // palabras por trozo de rótulo
   ancho: number;
   alto: number;
   otros: Record<string, string>;
@@ -103,6 +136,7 @@ export interface ParsedScript {
   subjects: Record<string, Subject>;
   poses: Record<string, PoseDef>;
   scenes: Scene[];
+  beats: Beat[];
   frames: Frame[];
   globalStyle: Record<string, string>;
   diagnostics: Diagnostic[];

@@ -1,5 +1,7 @@
 import type {
+  Beat,
   Diagnostic,
+  Effect,
   ExtraText,
   Focus,
   Frame,
@@ -22,6 +24,21 @@ export const BUILTIN_POSES = [
 ] as const;
 
 export const FACES = ["feliz", "picaro", "duda", "sorpresa", "serio", "triste"] as const;
+
+export const EFFECTS: { id: string; label: string; desc: string; aliases: string[]; example: string }[] = [
+  { id: "lineas-anime", label: "Líneas anime", desc: "Líneas de concentración manga desde los bordes hacia el centro.", aliases: ["lineas", "manga", "anime", "concentracion"], example: "efecto: lineas-anime" },
+  { id: "velocidad", label: "Velocidad", desc: "Rayas horizontales de movimiento en los costados.", aliases: ["speed"], example: "efecto: velocidad" },
+  { id: "destello", label: "Impacto", desc: "Estallido de cómic detrás del rótulo central.", aliases: ["impacto", "explosion", "boom"], example: "efecto: destello(color:#ffd23f)" },
+  { id: "borde", label: "Borde", desc: "Marco de color alrededor de la pantalla.", aliases: ["marco"], example: "efecto: borde(color:acento, grosor:28)" },
+  { id: "vineta", label: "Viñeta", desc: "Oscurece o tiñe los bordes de la pantalla.", aliases: [], example: "efecto: vineta(color:#000, fuerza:0.35)" },
+  { id: "trama", label: "Trama manga", desc: "Puntos de semitono en las esquinas.", aliases: ["puntos", "halftone"], example: "efecto: trama" },
+  { id: "temblor", label: "Temblor", desc: "Sacude ligeramente la composición en cada imagen.", aliases: ["shake", "sacudida"], example: "efecto: temblor(fuerza:1.5)" },
+  { id: "zoom", label: "Zoom progresivo", desc: "Acerca un poco más la imagen en cada trozo del rótulo.", aliases: ["acercar", "punch"], example: "efecto: zoom(paso:0.04)" },
+];
+
+const EFFECT_ALIAS: Record<string, string> = Object.fromEntries(
+  EFFECTS.flatMap((e) => [[e.id, e.id], ...e.aliases.map((a) => [a, e.id] as const)]),
+);
 
 /** minúsculas + sin tildes: "Muñeco" → "muneco", "pícaro" → "picaro" */
 export function norm(s: string): string {
@@ -49,6 +66,7 @@ const PROP_ALIASES: Record<string, string> = {
   texto: "caption",
   frase: "caption",
   rotulo: "caption",
+  palabras: "words",
   foco: "focus",
   sub: "subs",
   subs: "subs",
@@ -57,6 +75,9 @@ const PROP_ALIASES: Record<string, string> = {
   layout: "layout",
   disposicion: "layout",
   nota: "note",
+  efecto: "effects",
+  efectos: "effects",
+  fx: "effects",
 };
 
 const META_ALIASES: Record<string, keyof Meta | "estilo"> = {
@@ -66,6 +87,7 @@ const META_ALIASES: Record<string, keyof Meta | "estilo"> = {
   lang: "idioma",
   voz: "voz",
   ritmo: "ritmo",
+  palabras: "palabras",
   formato: "ancho",
   estilo: "estilo",
 };
@@ -75,10 +97,13 @@ function emptyState(): VisualState {
     A: null,
     B: null,
     mascot: null,
+    captionMode: "auto",
     caption: null,
+    words: 0,
     focus: "ambos",
     subs: true,
     extras: {},
+    effects: [],
     background: null,
     layout: "duo",
     style: {},
@@ -91,6 +116,7 @@ function cloneState(s: VisualState): VisualState {
     A: s.A ? { ...s.A } : null,
     B: s.B ? { ...s.B } : null,
     extras: Object.fromEntries(Object.entries(s.extras).map(([k, v]) => [k, { ...v }])),
+    effects: s.effects.map((e) => ({ name: e.name, opts: { ...e.opts } })),
     style: { ...s.style },
   };
 }
@@ -98,7 +124,7 @@ function cloneState(s: VisualState): VisualState {
 const isOff = (v: string) => ["-", "no", "off", "ninguno", "nada", "oculto", "false"].includes(norm(v));
 const isOn = (v: string) => ["si", "sí", "on", "visible", "true", "yes"].includes(norm(v));
 
-/** "(x:75, y:40, tam:56)" → { x: "75", ... } */
+/** "x:75, y:40, tam:56" → { x: "75", ... } */
 export function parseOptions(src: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const part of src.split(",")) {
@@ -113,11 +139,37 @@ export function parseOptions(src: string): Record<string, string> {
   return out;
 }
 
+/** "lineas-anime, borde(color:acento, grosor:20)" → [{name, opts}] */
+export function parseEffects(src: string, onUnknown?: (name: string) => void): Effect[] {
+  const out: Effect[] = [];
+  let depth = 0;
+  let cur = "";
+  const flush = () => {
+    const t = cur.trim();
+    cur = "";
+    if (!t) return;
+    const m = t.match(/^([^\s(]+)\s*(?:\((.*)\))?$/);
+    if (!m) return onUnknown?.(t);
+    const id = EFFECT_ALIAS[norm(m[1])];
+    if (!id) return onUnknown?.(m[1]);
+    out.push({ name: id, opts: parseOptions(m[2] ?? "") });
+  };
+  for (const ch of src) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if ((ch === "," || ch === "+") && depth === 0) flush();
+    else cur += ch;
+  }
+  flush();
+  return out;
+}
+
 const TAG_RE = /\[[^\]]*\]/g;
 const PAUSE_RE = /\[(?:pausa|pause)\s*([\d.,]+)?\s*s?\]/gi;
+const CUT_RE = /\s+\/\s+/g;
 
 export function cleanNarration(s: string): string {
-  return s.replace(TAG_RE, " ").replace(/\s+/g, " ").trim();
+  return s.replace(TAG_RE, " ").replace(CUT_RE, " ").replace(/\s+/g, " ").trim();
 }
 
 function pauseSeconds(s: string): number {
@@ -126,19 +178,54 @@ function pauseSeconds(s: string): number {
   return total;
 }
 
+const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
+
 export function estimateDuration(narration: string, wps: number): number {
-  const words = cleanNarration(narration).split(/\s+/).filter(Boolean).length;
-  const secs = words / Math.max(0.5, wps) + pauseSeconds(narration) + 0.25;
+  const secs = wordCount(cleanNarration(narration)) / Math.max(0.5, wps) + pauseSeconds(narration) + 0.25;
   return Math.max(1, Math.round(secs * 10) / 10);
+}
+
+/** Palabras que no deberían quedar solas al final de un trozo (se pasan al siguiente). */
+const GLUE = new Set(
+  "a an the of to in on at for and or but its my your his her our their with from by as el la los las un una unos unas de del al y e o u que en con por para su sus mi mis tu tus se lo le es muy mas sin sobre entre".split(" "),
+);
+
+/** Divide la narración en trozos cortos para el rótulo tipo karaoke. */
+export function chunkText(clean: string, maxWords: number): string[] {
+  const words = clean.split(/\s+/).filter(Boolean);
+  const max = Math.max(1, Math.round(maxWords));
+  const chunks: string[][] = [];
+  let cur: string[] = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    cur.push(w);
+    const punct = /[,.;:!?…)"»]$/.test(w);
+    const last = i === words.length - 1;
+    if (last) break;
+    if (punct || cur.length >= max) {
+      let carry: string | undefined;
+      if (!punct && cur.length > 1 && GLUE.has(norm(cur[cur.length - 1]).replace(/[^\p{L}]/gu, ""))) carry = cur.pop();
+      chunks.push(cur);
+      cur = carry ? [carry] : [];
+    }
+  }
+  if (cur.length) chunks.push(cur);
+  // Una palabra suelta al final se une al trozo anterior si no queda muy largo
+  if (chunks.length > 1 && chunks.at(-1)!.length === 1 && chunks.at(-2)!.length < max + 1 && !/[.!?…]$/.test(chunks.at(-2)!.at(-1)!)) {
+    const tail = chunks.pop()!;
+    chunks[chunks.length - 1].push(...tail);
+  }
+  return chunks.map((c) => c.join(" "));
 }
 
 export function parseScript(src: string): ParsedScript {
   const lines = src.split(/\r?\n/);
   const diagnostics: Diagnostic[] = [];
-  const meta: Meta = { titulo: "Sin título", idioma: "es", voz: "", ritmo: 2.6, ancho: 1080, alto: 1920, otros: {} };
+  const meta: Meta = { titulo: "Sin título", idioma: "es", voz: "", ritmo: 2.6, palabras: 3, ancho: 1080, alto: 1920, otros: {} };
   const subjects: Record<string, Subject> = {};
   const poses: Record<string, PoseDef> = {};
   const scenes: Scene[] = [];
+  const beats: Beat[] = [];
   const frames: Frame[] = [];
   const globalStyle: Record<string, string> = {};
   const refs: { id: string; line: number; kind: "sujeto" | "pose" }[] = [];
@@ -228,10 +315,10 @@ export function parseScript(src: string): ParsedScript {
           meta.ancho = +fm[1];
           meta.alto = +fm[2];
         } else warn(ln, "Formato inválido, usa por ejemplo 1080x1920");
-      } else if (target === "ritmo") {
+      } else if (target === "ritmo" || target === "palabras") {
         const r = parseFloat(val.replace(",", "."));
-        if (isFinite(r) && r > 0) meta.ritmo = r;
-        else warn(ln, "El ritmo debe ser palabras por segundo (ej: 2.6)");
+        if (isFinite(r) && r > 0) meta[target] = r;
+        else warn(ln, target === "ritmo" ? "El ritmo debe ser palabras por segundo (ej: 2.6)" : "@palabras necesita un número (ej: 3)");
       } else if (target) {
         (meta as unknown as Record<string, string>)[target] = unquote(val);
       } else {
@@ -270,7 +357,7 @@ export function parseScript(src: string): ParsedScript {
       continue;
     }
 
-    // ── Fotograma
+    // ── Línea de narración → una o más imágenes
     if (trimmed.startsWith(">")) {
       const sc = ensureScene(ln);
       let body = trimmed.slice(1).trim();
@@ -278,8 +365,9 @@ export function parseScript(src: string): ParsedScript {
       const om = body.match(/\{([^}]*)\}\s*$/);
       if (om) {
         for (const tok of om[1].split(/[,\s]+/).filter(Boolean)) {
-          const [k, v] = tok.split(/[:=]/);
-          opts[norm(k)] = v ?? "si";
+          const ci = tok.search(/[:=]/);
+          if (ci < 0) opts[norm(tok)] = "si";
+          else opts[norm(tok.slice(0, ci))] = tok.slice(ci + 1);
         }
         body = body.slice(0, om.index).trim();
       }
@@ -292,34 +380,76 @@ export function parseScript(src: string): ParsedScript {
       let explicit: number | undefined;
       let hideSub = false;
       let forceSub = false;
+      let whole = false;
+      let words = state.words || meta.palabras;
+      const frameState = cloneState(state);
       for (const [k, v] of Object.entries(opts)) {
         const dm = k.match(/^([\d.]+)s$/);
         if (dm) explicit = parseFloat(dm[1]);
         else if (k === "duracion" || k === "dur") explicit = parseFloat(v);
         else if (["sin-sub", "nosub", "sinsub", "sin-subtitulo"].includes(k)) hideSub = true;
         else if (k === "sub" && v === "si") forceSub = true;
-        else warn(ln, `Opción de fotograma desconocida: "${k}"`);
+        else if (["entero", "completo", "sin-cortes"].includes(k)) whole = true;
+        else if (k === "palabras") words = parseFloat(v) || words;
+        else if (["efecto", "efectos", "fx"].includes(k)) {
+          frameState.effects.push(...parseEffects(v, (n) => warn(ln, `Efecto desconocido: "${n}"`)));
+        } else warn(ln, `Opción de línea desconocida: "${k}"`);
       }
+      const manualParts = body.split(CUT_RE).map(cleanNarration).filter(Boolean);
+      const narration = body.replace(CUT_RE, " ");
       const clean = cleanNarration(body);
-      if (!clean && !body) warn(ln, "Fotograma sin narración (se mostrará sin voz)");
+      if (!clean) warn(ln, "Línea sin narración (se mostrará sin voz)");
       const showSub = forceSub || (state.subs && !hideSub);
       const subtitle = showSub ? (subOverride !== undefined ? subOverride : clean) || null : null;
       const duration = explicit ?? (clean ? estimateDuration(body, meta.ritmo) : 1.5);
-      frames.push({
-        index: frames.length,
+
+      // Trozos del rótulo central
+      let chunks: (string | null)[];
+      if (state.captionMode === "off") chunks = [null];
+      else if (state.captionMode === "fijo") chunks = [state.caption];
+      else if (!clean) chunks = [null];
+      else if (whole) chunks = [clean];
+      else if (manualParts.length > 1) chunks = manualParts;
+      else chunks = chunkText(clean, words);
+
+      const totalW = chunks.reduce((n, c) => n + Math.max(1, c ? wordCount(c) : 1), 0);
+      const beat: Beat = {
+        index: beats.length,
         line: ln,
         scene: sc.title,
         sceneIndex: sc.index,
-        narration: body,
+        narration,
         clean,
         subtitle,
         duration,
         start: 0,
         explicitDuration: explicit !== undefined,
         note: pendingNote,
-        state: cloneState(state),
+        firstFrame: frames.length,
+        frameCount: chunks.length,
+      };
+      beats.push(beat);
+      chunks.forEach((chunk, ci) => {
+        frames.push({
+          index: frames.length,
+          line: ln,
+          scene: sc.title,
+          sceneIndex: sc.index,
+          beat: beat.index,
+          chunkIndex: ci,
+          chunkCount: chunks.length,
+          caption: chunk,
+          narration,
+          clean,
+          subtitle,
+          duration: Math.round(((duration * Math.max(1, chunk ? wordCount(chunk) : 1)) / totalW) * 100) / 100,
+          start: 0,
+          explicitDuration: explicit !== undefined,
+          note: pendingNote,
+          state: frameState,
+        });
       });
-      sc.frameCount++;
+      sc.frameCount += chunks.length;
       pendingNote = null;
       continue;
     }
@@ -398,7 +528,21 @@ export function parseScript(src: string): ParsedScript {
           }
           break;
         case "caption":
-          state.caption = isOff(val) ? null : unquote(val);
+          if (isOff(val)) state.captionMode = "off";
+          else if (["auto", "karaoke"].includes(norm(val))) state.captionMode = "auto";
+          else {
+            state.captionMode = "fijo";
+            state.caption = unquote(val);
+          }
+          break;
+        case "words": {
+          const n = parseFloat(val);
+          if (isFinite(n) && n > 0) state.words = n;
+          else warn(ln, "palabras: necesita un número (ej: 3)");
+          break;
+        }
+        case "effects":
+          state.effects = isOff(val) ? [] : parseEffects(val, (n) => warn(ln, `Efecto desconocido: "${n}". Usa: ${EFFECTS.map((e) => e.id).join(", ")}`));
           break;
         case "focus": {
           const f = norm(val);
@@ -438,23 +582,29 @@ export function parseScript(src: string): ParsedScript {
     if (!(BUILTIN_POSES as readonly string[]).includes(p.base) && !p.file)
       warn(p.line, `Base de pose "${p.base}" desconocida (usa ${BUILTIN_POSES.join(", ")} o un archivo)`);
   }
-  if (frames.length === 0) diagnostics.push({ line: 1, level: "info", msg: 'Aún no hay fotogramas. Escribe una línea que empiece con ">"' });
+  if (frames.length === 0) diagnostics.push({ line: 1, level: "info", msg: 'Aún no hay líneas de narración. Escribe una línea que empiece con ">"' });
 
   let t = 0;
-  for (const f of frames) {
-    f.start = Math.round(t * 10) / 10;
-    t += f.duration;
+  for (const b of beats) {
+    b.start = Math.round(t * 100) / 100;
+    let ft = t;
+    for (let k = b.firstFrame; k < b.firstFrame + b.frameCount; k++) {
+      frames[k].start = Math.round(ft * 100) / 100;
+      ft += frames[k].duration;
+    }
+    t += b.duration;
   }
 
-  return { meta, subjects, poses, scenes, frames, globalStyle, diagnostics, totalDuration: Math.round(t * 10) / 10 };
+  return { meta, subjects, poses, scenes, beats, frames, globalStyle, diagnostics, totalDuration: Math.round(t * 10) / 10 };
 }
 
-/** Índice del fotograma que corresponde a una línea del editor */
+/** Índice de la primera imagen que corresponde a una línea del editor */
 export function frameAtLine(frames: Frame[], line: number): number {
   let found = -1;
   for (const f of frames) {
-    if (f.line <= line) found = f.index;
-    else break;
+    if (f.line <= line) {
+      if (found === -1 || frames[found].line !== f.line) found = f.index;
+    } else break;
   }
   if (found === -1 && frames.length) return 0;
   return found;

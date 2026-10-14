@@ -79,7 +79,11 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
     }
     return m;
   }, [diagnostics]);
-  const frameByLine = useMemo(() => new Map(frames.map((f) => [f.line, f.index + 1])), [frames]);
+  const frameByLine = useMemo(() => {
+    const m = new Map<number, { beat: number; count: number }>();
+    for (const f of frames) m.set(f.line, { beat: f.beat + 1, count: f.chunkCount });
+    return m;
+  }, [frames]);
 
   const reportCursor = () => {
     const el = ta.current;
@@ -152,10 +156,16 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
             const d = diagByLine.get(n);
             const fr = frameByLine.get(n);
             return (
-              <div key={i} className="relative flex items-center justify-end gap-1.5" style={{ height: LH }} title={d?.msg}>
+              <div
+                key={i}
+                className="relative flex items-center justify-end gap-1.5"
+                style={{ height: LH }}
+                title={d?.msg ?? (fr ? `Línea de voz ${fr.beat} · ${fr.count} imagen${fr.count > 1 ? "es" : ""}` : undefined)}
+              >
                 {fr !== undefined && (
                   <span className={`rounded px-1 text-[10px] leading-4 tabular-nums ${n === activeLine ? "bg-accent text-white" : "bg-panel-3 text-muted"}`}>
-                    {String(fr).padStart(2, "0")}
+                    {String(fr.beat).padStart(2, "0")}
+                    {fr.count > 1 && <span className="opacity-60">×{fr.count}</span>}
                   </span>
                 )}
                 <span className={`tabular-nums ${d ? (d.level === "error" ? "text-accent" : d.level === "warn" ? "text-amber" : "text-faint") : "text-faint/60"}`}>

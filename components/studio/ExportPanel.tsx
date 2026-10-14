@@ -22,6 +22,8 @@ function Row({
   desc,
   onCopy,
   onDownload,
+  onDownloadAlt,
+  altLabel,
   primary,
   flash,
 }: {
@@ -30,6 +32,8 @@ function Row({
   desc: string;
   onCopy?: () => void;
   onDownload?: () => void;
+  onDownloadAlt?: () => void;
+  altLabel?: string;
   primary?: boolean;
   flash: string | null;
 }) {
@@ -50,6 +54,11 @@ function Row({
         {onDownload && (
           <button type="button" onClick={onDownload} className="rounded-md border border-line-strong px-2.5 py-1 text-[12px] transition-colors hover:border-accent hover:text-accent">
             Descargar
+          </button>
+        )}
+        {onDownloadAlt && (
+          <button type="button" onClick={onDownloadAlt} className="rounded-md border border-line-strong px-2.5 py-1 text-[12px] transition-colors hover:border-accent hover:text-accent">
+            {altLabel}
           </button>
         )}
       </div>
@@ -93,6 +102,7 @@ export function ExportPanel({ rc, source, onImport }: Props) {
       zip.file("guion-voz.md", toNarrationMarkdown(script));
       zip.file("narracion.txt", toPlainText(script));
       zip.file("subtitulos.srt", toSRT(script));
+      zip.file("subtitulos-trozos.srt", toSRT(script, true));
       zip.file("linea-de-tiempo.json", JSON.stringify(toTimeline(script), null, 2));
       zip.file("guion.vsl", source);
       download(`${base}.zip`, await zip.generateAsync({ type: "blob" }));
@@ -127,7 +137,7 @@ export function ExportPanel({ rc, source, onImport }: Props) {
         <p className="text-[11px] uppercase tracking-[0.16em] text-faint">Paquete completo</p>
         <h3 className="mt-1 font-display text-[26px] leading-none italic">Fotogramas + guion</h3>
         <p className="mt-2 text-[12px] leading-snug text-muted">
-          ZIP con los {script.frames.length} PNG en {script.meta.ancho}×{script.meta.alto}, numerados en orden, más el guion para la voz, SRT, JSON de línea de tiempo y el .vsl.
+          ZIP con las {script.frames.length} imágenes PNG ({script.beats.length} líneas de voz) en {script.meta.ancho}×{script.meta.alto}, numerados en orden, más el guion para la voz, SRT, JSON de línea de tiempo y el .vsl.
         </p>
         <button
           type="button"
@@ -167,7 +177,15 @@ export function ExportPanel({ rc, source, onImport }: Props) {
         onCopy={() => copy("json", JSON.stringify(toTimeline(script), null, 2))}
         onDownload={() => download(`${base}-linea-de-tiempo.json`, JSON.stringify(toTimeline(script), null, 2), "application/json")}
       />
-      <Row flash={flash} id="srt" title="Subtítulos .srt" desc="Con tiempos estimados según @ritmo." onDownload={() => download(`${base}.srt`, toSRT(script))} />
+      <Row
+        flash={flash}
+        id="srt"
+        title="Subtítulos .srt"
+        desc="Uno por línea de voz, o por trozo del rótulo (estilo karaoke). Tiempos estimados según @ritmo."
+        onDownload={() => download(`${base}.srt`, toSRT(script))}
+        onDownloadAlt={() => download(`${base}-trozos.srt`, toSRT(script, true))}
+        altLabel="Por trozo"
+      />
       <Row
         flash={flash}
         id="img"
