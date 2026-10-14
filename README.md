@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Versus — estudio de guiones para videos comparativos
 
-## Getting Started
+Escribe el guion en **VSL** (un lenguaje de guion sencillo), mira cada fotograma en vivo y exporta:
 
-First, run the development server:
+- los **PNG** de cada fotograma (1080×1920, numerados en orden),
+- el **guion para la IA de voz** (Markdown con instrucciones + líneas sincronizadas con cada imagen),
+- narración en texto plano, **SRT**, **JSON** de línea de tiempo y la lista de imágenes a generar,
+- un **prompt** con la especificación del lenguaje para que ChatGPT/Claude escriban guiones nuevos.
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## VSL en 30 segundos
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+@titulo Missile vs Rocket
+@voz    Narrador curioso, ritmo ágil
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+sujeto misil "Missile"
+  imagen: Misil AGNI-V diagonal, fondo blanco
 
-## Learn More
+== Misil vs cohete
+A: misil
+B: cohete
+muneco: apunta-izq feliz
+texto: change its direction
+foco: A
+> A missile can change its direction to follow
+texto: while a rocket
+muneco: apunta-der feliz
+foco: B
+> while a rocket flies straight after it's launched
+```
 
-To learn more about Next.js, take a look at the following resources:
+- Cada línea `>` = un fotograma (imagen + línea de narración).
+- Las propiedades (`A:`, `B:`, `muneco:`, `texto:`, `foco:`…) **persisten** hasta que las cambies.
+- `[curioso]`, `[pausa 0.5]` = dirección de voz (no se lee ni se ve). `| texto` = subtítulo distinto. `{2s, sin-sub}` = opciones del fotograma.
+- `@estilo grupo.clave valor` cambia cualquier parte de la plantilla (tamaños, posiciones, fuentes, colores).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+La referencia completa está en la pestaña **Lenguaje** del estudio.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estructura
 
-## Deploy on Vercel
+- `lib/dsl/` — parser, tipos, plantilla visual, especificación y ejemplo.
+- `lib/render/` — renderizador canvas (el mismo para vista previa y exportación) y el muñeco SVG.
+- `lib/export/` — exportadores (Markdown de voz, SRT, JSON, lista de imágenes).
+- `components/studio/` — interfaz: editor, escenario, inspector.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El proyecto se autoguarda en el navegador (guion y plantilla en localStorage, imágenes en IndexedDB). Usa **Exportar → Guardar .versus.json** para respaldarlo o moverlo a otro equipo.
