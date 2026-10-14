@@ -54,14 +54,16 @@ export interface SlotRef {
   title?: string; // título sobrescrito o literal
 }
 
-export type Focus = "A" | "B" | "ambos" | "ninguno";
-export type Layout = "duo" | "centro";
+export type Focus = "A" | "B" | "C" | "ambos" | "ninguno";
+/** duo = A y B; trio = A, B, C (se activa solo al usar C:); centro = solo A grande */
+export type Layout = "duo" | "trio" | "centro";
 /** auto = el rótulo central muestra la narración en trozos (karaoke) */
 export type CaptionMode = "auto" | "fijo" | "off";
 
 export interface VisualState {
   A: SlotRef | null;
   B: SlotRef | null;
+  C: SlotRef | null;
   mascot: string | null; // "apunta-izq feliz" o alias de pose
   captionMode: CaptionMode;
   caption: string | null; // texto fijo cuando captionMode = "fijo"

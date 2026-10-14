@@ -88,4 +88,15 @@ extra velocidad: "MACH 20+" (x:78, y:47, tam:44, color:acento, rot:-6)
 > This is a ballistic missile [énfasis]
 extra velocidad: -
 efecto: -
+
+== Los tres
+# Con C: la pantalla pasa sola a tres columnas (A · B · C)
+C: hiper
+muneco: apunta-centro sorpresa
+foco: B
+> But which one / is the fastest?
+
+foco: C
+muneco: apunta-der picaro
+> The hypersonic missile wins [énfasis] {efecto:destello}
 `;

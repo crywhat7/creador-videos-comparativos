@@ -69,7 +69,7 @@ export function AssetsPanel({ script, assets, template, onAsset, onInsert, onRev
   const [face, setFace] = useState<string>("feliz");
   const usage = useMemo(() => {
     const m = new Map<string, number>();
-    for (const f of script.frames) for (const r of [f.state.A, f.state.B]) if (r?.subjectId) m.set(r.subjectId, (m.get(r.subjectId) ?? 0) + 1);
+    for (const f of script.frames) for (const r of [f.state.A, f.state.B, f.state.C]) if (r?.subjectId) m.set(r.subjectId, (m.get(r.subjectId) ?? 0) + 1);
     return m;
   }, [script.frames]);
 

@@ -37,6 +37,10 @@ const POSES: Record<string, { L: Arm; R: Arm; mirror?: boolean; question?: boole
     R: { s: SR, e: [432, 400], w: [500, 392], hand: "palm", lines: true },
     mirror: true,
   },
+  "apunta-centro": {
+    L: { s: SL, e: [178, 400], w: [112, 404], hand: "palm", lines: true },
+    R: { s: SR, e: [440, 250], w: [438, 118], hand: "point", lines: true },
+  },
   duda: {
     L: { s: SL, e: [186, 410], w: [118, 418], hand: "palm", lines: true },
     R: { s: SR, e: [414, 410], w: [482, 418], hand: "palm", lines: true },

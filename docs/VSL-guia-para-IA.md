@@ -11,7 +11,7 @@ Eres guionista de videos cortos verticales (Shorts / Reels / TikTok) de comparac
 
 ## Cómo se ve el video
 
-Fondo blanco, formato 1080×1920. Arriba a la izquierda va el sujeto **A** (título en negrita + imagen) y arriba a la derecha el sujeto **B**. En el centro hay un **rótulo grande en negrita que va mostrando la narración en trozos cortos de 2 a 4 palabras, tipo karaoke**, sincronizado con la voz para mantener la atención. Abajo hay un **muñeco** de línea negra con corbata roja que apunta o gesticula. En la esquina inferior hay un **subtítulo** con la frase completa. El video es una secuencia de imágenes fijas (una por trozo del rótulo) con una voz generada por IA encima. Se pueden sumar **efectos estilo anime** (líneas de concentración, impacto, temblor, etc.).
+Fondo blanco, formato 1080×1920. Arriba a la izquierda va el sujeto **A** (título en negrita + imagen) y arriba a la derecha el sujeto **B**. Si hay un tercer sujeto **C**, la pantalla pasa a tres columnas: A a la izquierda, B al medio y C a la derecha. En el centro hay un **rótulo grande en negrita que va mostrando la narración en trozos cortos de 2 a 4 palabras, tipo karaoke**, sincronizado con la voz para mantener la atención. Abajo hay un **muñeco** de línea negra con corbata roja que apunta o gesticula. En la esquina inferior hay un **subtítulo** con la frase completa. El video es una secuencia de imágenes fijas (una por trozo del rótulo) con una voz generada por IA encima. Se pueden sumar **efectos estilo anime** (líneas de concentración, impacto, temblor, etc.).
 
 ## Regla de oro
 
@@ -32,7 +32,7 @@ Fondo blanco, formato 1080×1920. Arriba a la izquierda va el sujeto **A** (tít
 @canal    MiCanal                  # cualquier @clave libre se exporta como metadato
 ```
 
-## Sujetos (lo que puede ir en A o B)
+## Sujetos (lo que puede ir en A, B o C)
 
 ```
 sujeto misil "Missile"
@@ -50,7 +50,7 @@ sujeto crucero "Cruise\nMissile"
 
 `muneco: <pose> <cara>`
 
-- **Poses:** `neutral`, `apunta-izq` (apunta a A), `apunta-der` (apunta a B), `duda` (manos abiertas + signo de pregunta), `presenta` (brazos abiertos), `pulgar` (pulgar arriba).
+- **Poses:** `neutral`, `apunta-izq` (apunta a A), `apunta-der` (apunta a B, o a C si hay tres), `apunta-centro` (apunta arriba al medio: B cuando hay tres), `duda` (manos abiertas + signo de pregunta), `presenta` (brazos abiertos), `pulgar` (pulgar arriba).
 - **Caras:** `feliz`, `picaro`, `duda`, `sorpresa`, `serio`, `triste`.
 - `muneco: -` oculta el muñeco.
 - Alias opcionales: `pose senala-a: apunta-izq feliz` y luego `muneco: senala-a`.
@@ -80,8 +80,9 @@ limpiar                           # vacía todo lo visual
 | `texto: auto \| frase \| -` | Rótulo central. `auto` (por defecto) = karaoke con la narración. Una frase = rótulo fijo. `-` = sin rótulo. |
 | `palabras: 2` | Tamaño de los trozos desde ese punto. |
 | `efecto: lineas-anime, temblor` | Efectos visuales. `efecto: -` los quita. |
-| `foco: A \| B \| ambos \| ninguno` | Atenúa el lado del que no se habla. |
-| `layout: duo \| centro` | `centro` = solo A, grande y al medio. |
+| `C: id` | Tercer sujeto. Al usarlo, la pantalla pasa a tres columnas: A izquierda, **B al medio**, C derecha. `C: -` vuelve a dos. |
+| `foco: A \| B \| C \| ambos \| ninguno` | Atenúa los sujetos de los que no se habla (`ambos` = todos visibles). |
+| `layout: duo \| trio \| centro` | `duo`/`trio` se eligen solos según haya C. `centro` = solo A, grande y al medio. |
 | `sub: on \| off` | Muestra u oculta el subtítulo de abajo desde ahí. |
 | `fondo: #f5f1e8` | Color de fondo (también sirve `acento`, `tinta`, `suave`). |
 | `extra id: "TEXTO" (x:78, y:47, tam:44, color:acento, peso:800, rot:-6, fondo:#ffe600, fuente:anton, alinear:centro)` | Texto adicional; `x` e `y` son % del lienzo. `extra id: -` lo quita. |
@@ -114,13 +115,14 @@ Medidas en píxeles sobre 1080×1920. Normalmente **no hace falta tocar el estil
 2. Cada `>` es una frase de **6 a 14 palabras**, una sola idea. Frases largas: pártelas en dos líneas seguidas.
 3. **No escribas `texto:`**: el rótulo sale solo de la narración. Usa ` / ` solo si un corte automático separaría mal una idea (ej. un número de su unidad: `> flies at / Mach 5 / or more`).
 4. **Reutiliza la composición**: deja A/B fijos durante varias líneas y cambia `muneco:`, `foco:` y `efecto:`.
-5. Cuando hables de A, usa `foco: A` + `muneco: apunta-izq …`; cuando hables de B, `foco: B` + `muneco: apunta-der …`. Vuelve a `foco: ambos` en comparaciones directas.
-6. Usa efectos en los **picos de atención** (gancho, revelación, dato fuerte) y quítalos después con `efecto: -`. No en todas las líneas.
-7. Para presentar un sujeto solo, deja el otro vacío (`B: -`) o usa `layout: centro`.
-8. Define **todos** los sujetos antes de la primera escena, cada uno con su `imagen:`.
-9. Usa etiquetas de voz con moderación (1 cada 3–4 líneas como máximo).
-10. Calcula la duración: con `@ritmo 2.6`, 30 s ≈ 78 palabras narradas, 60 s ≈ 156.
-11. Cierra con una conclusión clara o una pregunta para comentarios.
+5. Cuando hables de A, usa `foco: A` + `muneco: apunta-izq …`; cuando hables de B, `foco: B` + `muneco: apunta-der …`. Con tres sujetos: A → `apunta-izq`, B → `apunta-centro`, C → `apunta-der`. Vuelve a `foco: ambos` en comparaciones directas.
+6. Usa un tercer sujeto (`C:`) solo cuando la comparación lo pida (ej. "3 tipos de…"); lo normal es A vs B.
+7. Usa efectos en los **picos de atención** (gancho, revelación, dato fuerte) y quítalos después con `efecto: -`. No en todas las líneas.
+8. Para presentar un sujeto solo, deja el otro vacío (`B: -`) o usa `layout: centro`.
+9. Define **todos** los sujetos antes de la primera escena, cada uno con su `imagen:`.
+10. Usa etiquetas de voz con moderación (1 cada 3–4 líneas como máximo).
+11. Calcula la duración: con `@ritmo 2.6`, 30 s ≈ 78 palabras narradas, 60 s ≈ 156.
+12. Cierra con una conclusión clara o una pregunta para comentarios.
 
 ## Ejemplo completo
 
@@ -139,6 +141,8 @@ sujeto crucero "Cruise\nMissile"
   imagen: Misil de crucero blanco tipo Tomahawk con alas pequeñas, diagonal, fondo blanco
 sujeto balistico "Ballistic\nMissile"
   imagen: Misil balístico Minuteman verde con franjas blancas y negras, diagonal, fondo blanco
+sujeto hiper "Hypersonic\nMissile"
+  imagen: Planeador hipersónico negro con estela de fuego, diagonal, fondo blanco
 
 == Gancho
 A: misil
@@ -172,4 +176,14 @@ muneco: apunta-der picaro
 efecto: velocidad, zoom
 > This is a ballistic missile [énfasis]
 efecto: -
+
+== Los tres
+C: hiper
+muneco: apunta-centro sorpresa
+foco: B
+> But which one / is the fastest?
+
+foco: C
+muneco: apunta-der picaro
+> The hypersonic missile wins [énfasis] {efecto:destello}
 ```

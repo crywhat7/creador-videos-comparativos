@@ -32,7 +32,20 @@ export interface Template {
     mayusculas: boolean;
     anchoMax: number;
   };
-  imagenes: { xA: number; xB: number; xCentro: number; y: number; ancho: number; alto: number; rotacion: number; escalaCentro: number };
+  imagenes: {
+    xA: number;
+    xB: number;
+    xCentro: number;
+    y: number;
+    ancho: number;
+    alto: number;
+    rotacion: number;
+    escalaCentro: number;
+    trioXA: number;
+    trioXB: number;
+    trioXC: number;
+    trioEscala: number;
+  };
   texto: { fuente: FontKey; tam: number; peso: number; color: string; y: number; anchoMax: number; tracking: number; interlineado: number };
   muneco: { x: number; y: number; alto: number; trazo: string; corbata: string; camisa: string; grosor: number };
   subtitulo: {
@@ -76,7 +89,7 @@ export const DEFAULT_TEMPLATE: Template = {
   lienzo: { fondo: "#ffffff" },
   paleta: { acento: "#c62828", tinta: "#111111", suave: "#8a8a8a" },
   titulos: { fuente: "montserrat", tam: 78, peso: 800, color: "#111111", y: 300, interlineado: 1.0, tracking: -0.5, mayusculas: false, anchoMax: 470 },
-  imagenes: { xA: 290, xB: 790, xCentro: 540, y: 600, ancho: 470, alto: 400, rotacion: 0, escalaCentro: 1.3 },
+  imagenes: { xA: 290, xB: 790, xCentro: 540, y: 600, ancho: 470, alto: 400, rotacion: 0, escalaCentro: 1.3, trioXA: 190, trioXB: 540, trioXC: 890, trioEscala: 0.68 },
   texto: { fuente: "montserrat", tam: 56, peso: 800, color: "#111111", y: 960, anchoMax: 960, tracking: -0.3, interlineado: 1.1 },
   muneco: { x: 540, y: 1430, alto: 780, trazo: "#111111", corbata: "#c62828", camisa: "#ffffff", grosor: 7 },
   subtitulo: {

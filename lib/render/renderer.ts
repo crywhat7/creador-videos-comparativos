@@ -1,5 +1,5 @@
 import { applyOverrides, resolveColor, type FontKey, type Template } from "../dsl/template";
-import type { Frame, ParsedScript, SlotRef, Subject } from "../dsl/types";
+import type { Frame, ParsedScript, SlotRef, Subject, VisualState } from "../dsl/types";
 import { getImage, imageFailed } from "./images";
 import { applyCameraEffects, drawBurst, drawOverlayEffects, findEffect } from "./effects";
 import { mascotDataURL } from "./mascot";
@@ -66,6 +66,12 @@ export function mascotSource(value: string, rc: RenderContext, t: Template): str
   );
 }
 
+/** El trío se activa solo cuando hay algo en C (salvo layout: centro). */
+export function effectiveLayout(st: VisualState): "duo" | "trio" | "centro" {
+  if (st.layout === "centro") return "centro";
+  return st.layout === "trio" || st.C ? "trio" : "duo";
+}
+
 export function slotTitle(ref: SlotRef | null, script: ParsedScript): string {
   if (!ref) return "";
   if (ref.title) return ref.title;
@@ -125,14 +131,22 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
   ctx.save();
   applyCameraEffects(ctx, st.effects, t, W, H, seed, frame.chunkIndex);
 
-  // ── Slots A / B
-  const slots: { key: "A" | "B"; ref: SlotRef | null; x: number; scale: number }[] =
-    st.layout === "centro"
-      ? [{ key: "A", ref: st.A, x: t.imagenes.xCentro, scale: t.imagenes.escalaCentro }]
-      : [
-          { key: "A", ref: st.A, x: t.imagenes.xA, scale: 1 },
-          { key: "B", ref: st.B, x: t.imagenes.xB, scale: 1 },
-        ];
+  // ── Slots A / B / C
+  const layout = effectiveLayout(st);
+  const im = t.imagenes;
+  const slots: { key: "A" | "B" | "C"; ref: SlotRef | null; x: number; scale: number }[] =
+    layout === "centro"
+      ? [{ key: "A", ref: st.A, x: im.xCentro, scale: im.escalaCentro }]
+      : layout === "trio"
+        ? [
+            { key: "A", ref: st.A, x: im.trioXA, scale: im.trioEscala },
+            { key: "B", ref: st.B, x: im.trioXB, scale: im.trioEscala },
+            { key: "C", ref: st.C, x: im.trioXC, scale: im.trioEscala },
+          ]
+        : [
+            { key: "A", ref: st.A, x: im.xA, scale: 1 },
+            { key: "B", ref: st.B, x: im.xB, scale: 1 },
+          ];
 
   for (const slot of slots) {
     if (!slot.ref) continue;
@@ -143,7 +157,8 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
     // Título
     let title = slotTitle(slot.ref, script);
     if (t.titulos.mayusculas) title = title.toUpperCase();
-    const ts = t.titulos.tam * s * (slot.scale > 1 ? 1.1 : 1);
+    // Los títulos se achican menos que las imágenes para seguir siendo legibles
+    const ts = t.titulos.tam * s * (slot.scale > 1 ? 1.1 : slot.scale < 1 ? 0.5 + slot.scale * 0.45 : 1);
     ctx.font = `${t.titulos.peso} ${ts}px ${font(t.titulos.fuente, "montserrat")}`;
     ctx.letterSpacing = `${t.titulos.tracking * s}px`;
     ctx.fillStyle = resolveColor(subj?.titleColor, t, resolveColor(t.titulos.color, t, "#111"));
@@ -276,7 +291,7 @@ export function allSources(rc: RenderContext): string[] {
   const out = new Set<string>();
   for (const f of rc.script.frames) {
     const t = frameTemplate(rc, f);
-    for (const ref of [f.state.A, f.state.B]) {
+    for (const ref of [f.state.A, f.state.B, f.state.C]) {
       if (!ref?.subjectId) continue;
       const src = subjectSource(rc.script.subjects[ref.subjectId], ref.subjectId, rc.assets);
       if (src) out.add(src);

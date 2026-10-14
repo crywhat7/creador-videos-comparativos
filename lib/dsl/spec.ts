@@ -65,12 +65,13 @@ export const SPEC: SpecSection[] = [
     title: "Propiedades visuales (persisten)",
     entries: [
       { syntax: "A: id | B: id", desc: 'Sujeto en el lado izquierdo / derecho. "-" lo vacía. A: id "Otro título" sobrescribe el título; A: "Texto" usa un título suelto.' },
+      { syntax: "C: id", desc: "Tercer sujeto: al usarlo la pantalla pasa a tres columnas (A izquierda, B al medio, C derecha). C: - vuelve a dos.", example: "A: misil\nB: cohete\nC: dron\nmuneco: apunta-centro feliz\nfoco: B" },
       { syntax: "muneco: pose [cara]", desc: '"-" lo oculta.', example: "muneco: apunta-der picaro" },
       { syntax: "texto: auto | frase | -", desc: "Rótulo grande del centro. auto (por defecto) = la narración en trozos tipo karaoke. Una frase = texto fijo (una imagen por línea). - = sin rótulo." },
       { syntax: "palabras: 2", desc: "Cambia el tamaño de los trozos desde aquí." },
       { syntax: "efecto: lineas-anime, temblor", desc: "Efectos visuales (persisten). - los quita. Ver sección Efectos." },
-      { syntax: "foco: A | B | ambos | ninguno", desc: "Atenúa el lado que no está en foco." },
-      { syntax: "layout: duo | centro", desc: "centro = un solo sujeto (A) grande al medio." },
+      { syntax: "foco: A | B | C | ambos | ninguno", desc: "Atenúa los sujetos que no están en foco. ambos = todos visibles." },
+      { syntax: "layout: duo | trio | centro", desc: "duo/trio se eligen solos según haya C. centro = un solo sujeto (A) grande al medio." },
       { syntax: "sub: on | off", desc: "Mostrar u ocultar subtítulos desde aquí." },
       { syntax: "fondo: #f5f1e8", desc: "Color de fondo (también acento, tinta, suave)." },
       { syntax: 'extra id: "texto" (x:70, y:45, tam:48, color:acento, peso:800, rot:-6, fondo:#ff0, fuente:anton, alinear:centro)', desc: 'Texto adicional en % del lienzo. "extra id: -" lo quita.' },
@@ -110,7 +111,7 @@ Reglas de estilo:
 - Si un corte automático queda raro, marca los trozos con " / " (ej: > A missile can / change its direction / to follow).
 - Reutiliza la misma composición (A/B) en varias líneas seguidas y solo cambia la pose del muñeco, el foco o los efectos.
 - Usa efectos para picos de atención (gancho, revelación, dato fuerte), no en todas las líneas.
-- Usa foco: para dirigir la atención al lado del que se habla, y una pose que apunte hacia ese lado (apunta-izq = A, apunta-der = B).
+- Usa foco: para dirigir la atención al sujeto del que se habla, y una pose que apunte hacia él (apunta-izq = A, apunta-der = B; con tres sujetos: apunta-izq = A, apunta-centro = B, apunta-der = C).
 - Define cada sujeto con un prompt de imagen claro: objeto completo, diagonal, fondo blanco, sin texto.
 - Usa etiquetas de voz [curioso] [énfasis] [pausa 0.4] con moderación.
 

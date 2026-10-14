@@ -38,6 +38,10 @@ const KEY_LABELS: Record<string, string> = {
   alto: "Alto",
   rotacion: "Rotación",
   escalaCentro: "Escala (centro)",
+  trioXA: "Trío: X de A",
+  trioXB: "Trío: X de B",
+  trioXC: "Trío: X de C",
+  trioEscala: "Trío: escala",
   trazo: "Trazo",
   corbata: "Corbata",
   camisa: "Relleno",
@@ -79,6 +83,8 @@ function range(key: string): [number, number, number] {
   if (key === "opacidad") return [0, 1, 0.05];
   if (key === "rotacion") return [-45, 45, 1];
   if (key === "escalaCentro") return [0.5, 2.5, 0.05];
+  if (key === "trioEscala") return [0.3, 1.2, 0.01];
+  if (key.startsWith("trioX")) return [0, 1080, 1];
   if (key === "grosor") return [1, 16, 0.5];
   if (key === "radio" || key === "padX" || key === "padY") return [0, 90, 1];
   if (key.startsWith("x")) return [0, 1080, 1];

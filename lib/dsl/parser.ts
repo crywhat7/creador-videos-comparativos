@@ -18,6 +18,7 @@ export const BUILTIN_POSES = [
   "neutral",
   "apunta-izq",
   "apunta-der",
+  "apunta-centro",
   "duda",
   "presenta",
   "pulgar",
@@ -60,6 +61,7 @@ export function unquote(v: string): string {
 const PROP_ALIASES: Record<string, string> = {
   a: "A",
   b: "B",
+  c: "C",
   muneco: "mascot",
   personaje: "mascot",
   mascota: "mascot",
@@ -96,6 +98,7 @@ function emptyState(): VisualState {
   return {
     A: null,
     B: null,
+    C: null,
     mascot: null,
     captionMode: "auto",
     caption: null,
@@ -115,6 +118,7 @@ function cloneState(s: VisualState): VisualState {
     ...s,
     A: s.A ? { ...s.A } : null,
     B: s.B ? { ...s.B } : null,
+    C: s.C ? { ...s.C } : null,
     extras: Object.fromEntries(Object.entries(s.extras).map(([k, v]) => [k, { ...v }])),
     effects: s.effects.map((e) => ({ name: e.name, opts: { ...e.opts } })),
     style: { ...s.style },
@@ -514,6 +518,7 @@ export function parseScript(src: string): ParsedScript {
       switch (key) {
         case "A":
         case "B":
+        case "C":
           state[key] = parseSlot(val, ln);
           break;
         case "mascot":
@@ -546,9 +551,9 @@ export function parseScript(src: string): ParsedScript {
           break;
         case "focus": {
           const f = norm(val);
-          const map: Record<string, Focus> = { a: "A", b: "B", ambos: "ambos", todos: "ambos", ninguno: "ninguno", "-": "ninguno" };
+          const map: Record<string, Focus> = { a: "A", b: "B", c: "C", ambos: "ambos", todos: "ambos", ninguno: "ninguno", "-": "ninguno" };
           if (map[f]) state.focus = map[f];
-          else warn(ln, "foco: A | B | ambos | ninguno");
+          else warn(ln, "foco: A | B | C | ambos | ninguno");
           break;
         }
         case "subs":
@@ -559,8 +564,8 @@ export function parseScript(src: string): ParsedScript {
           break;
         case "layout": {
           const l = norm(val);
-          if (l === "duo" || l === "centro") state.layout = l;
-          else warn(ln, "layout: duo | centro");
+          if (l === "duo" || l === "trio" || l === "centro") state.layout = l;
+          else warn(ln, "layout: duo | trio | centro");
           break;
         }
         case "note":

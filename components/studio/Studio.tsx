@@ -8,7 +8,7 @@ import { applyOverrides, cloneTemplate, DEFAULT_TEMPLATE, FONT_KEYS, hydrateTemp
 import type { Diagnostic, Frame } from "@/lib/dsl/types";
 import { fmtTime } from "@/lib/export/exporters";
 import { onImagesChange } from "@/lib/render/images";
-import { resolveMascot, slotTitle, type RenderContext } from "@/lib/render/renderer";
+import { effectiveLayout, resolveMascot, slotTitle, type RenderContext } from "@/lib/render/renderer";
 import { loadAssets, loadProject, putAsset, saveProject } from "@/lib/storage";
 import { AssetsPanel } from "./AssetsPanel";
 import { DesignPanel } from "./DesignPanel";
@@ -434,7 +434,8 @@ function FrameInfo({ frame, rc, onReveal }: { frame: Frame | null; rc: RenderCon
   const m = st.mascot ? resolveMascot(st.mascot, rc.script) : null;
   const rows: [string, React.ReactNode][] = [
     ["A", st.A ? slotTitle(st.A, rc.script).replace(/\n/g, " ") : "—"],
-    ["B", st.layout === "centro" ? "(layout centro)" : st.B ? slotTitle(st.B, rc.script).replace(/\n/g, " ") : "—"],
+    ["B", effectiveLayout(st) === "centro" ? "(layout centro)" : st.B ? slotTitle(st.B, rc.script).replace(/\n/g, " ") : "—"],
+    ...(effectiveLayout(st) === "trio" ? [["C", st.C ? slotTitle(st.C, rc.script).replace(/\n/g, " ") : "—"] as [string, React.ReactNode]] : []),
     ["Rótulo", frame.caption ? `«${frame.caption}»${frame.chunkCount > 1 ? ` (trozo ${frame.chunkIndex + 1}/${frame.chunkCount})` : ""}${st.captionMode === "fijo" ? " · fijo" : ""}` : "—"],
     ["Muñeco", m ? `${m.base} · ${m.face}` : "—"],
     ["Foco", st.focus],

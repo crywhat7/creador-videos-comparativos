@@ -1,4 +1,4 @@
-import { resolveMascot, slotTitle } from "../render/renderer";
+import { effectiveLayout, resolveMascot, slotTitle } from "../render/renderer";
 import type { Beat, Frame, ParsedScript, SlotRef } from "../dsl/types";
 
 export const pad3 = (n: number) => String(n).padStart(3, "0");
@@ -128,8 +128,9 @@ export function toTimeline(script: ParsedScript) {
         nota_direccion: b.note,
         visual: st && {
           A: slotJSON(st.A, script),
-          B: st.layout === "centro" ? null : slotJSON(st.B, script),
-          layout: st.layout,
+          B: effectiveLayout(st) === "centro" ? null : slotJSON(st.B, script),
+          C: effectiveLayout(st) === "trio" ? slotJSON(st.C, script) : null,
+          layout: effectiveLayout(st),
           foco: st.focus,
           muneco: st.mascot ? { ...resolveMascot(st.mascot, script), def: undefined, valor: st.mascot } : null,
           efectos: st.effects.map((e) => e.name),
@@ -153,12 +154,12 @@ export function toImageList(script: ParsedScript, assets: Record<string, string>
   const used = new Map<string, number>();
   const poses = new Map<string, number>();
   for (const f of script.frames) {
-    for (const r of [f.state.A, f.state.B]) if (r?.subjectId) used.set(r.subjectId, (used.get(r.subjectId) ?? 0) + 1);
+    for (const r of [f.state.A, f.state.B, f.state.C]) if (r?.subjectId) used.set(r.subjectId, (used.get(r.subjectId) ?? 0) + 1);
     if (f.state.mascot) poses.set(f.state.mascot, (poses.get(f.state.mascot) ?? 0) + 1);
   }
   const out: string[] = [`# Recursos visuales — ${script.meta.titulo}`, ""];
   out.push("Imágenes de sujetos con **fondo blanco o transparente**, objeto completo, sin texto. Formato recomendado PNG.", "");
-  out.push("## Sujetos (imagen A / B)", "");
+  out.push("## Sujetos (imagen A / B / C)", "");
   for (const s of Object.values(script.subjects)) {
     const done = !!(assets[`sujeto:${s.id}`] || (s.file && assets[s.file]) || (s.file && /^https?:/.test(s.file)));
     out.push(`- [${done ? "x" : " "}] **${s.title.replace(/\n/g, " ")}** (\`${s.id}\`) — usado en ${used.get(s.id) ?? 0} fotogramas`);

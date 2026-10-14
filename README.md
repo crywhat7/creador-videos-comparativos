@@ -34,6 +34,7 @@ foco: B
 - Cada línea `>` = una línea de voz. El rótulo del centro la muestra en trozos tipo karaoke (`@palabras 3`); cada trozo es una imagen. ` / ` marca cortes manuales.
 - Las propiedades (`A:`, `B:`, `muneco:`, `texto:`, `foco:`…) **persisten** hasta que las cambies.
 - `[curioso]`, `[pausa 0.5]` = dirección de voz (no se lee ni se ve). `| texto` = subtítulo distinto. `{2s, sin-sub}` = opciones del fotograma.
+- `C: id` agrega un tercer sujeto (A izquierda, B al medio, C derecha).
 - `efecto: lineas-anime, temblor` agrega efectos estilo anime (líneas, impacto, borde, viñeta, trama, temblor, zoom).
 - `@estilo grupo.clave valor` cambia cualquier parte de la plantilla (tamaños, posiciones, fuentes, colores).
 
