@@ -96,6 +96,19 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
   return out;
 }
 
+/**
+ * Achica la fuente si alguna palabra no cabe en el ancho máximo
+ * (así un título largo como "Hypersonic" no se sale de su columna). Deja ctx.font aplicado.
+ */
+function fitSize(ctx: CanvasRenderingContext2D, text: string, fontAt: (px: number) => string, size: number, maxW: number): number {
+  ctx.font = fontAt(size);
+  const widest = Math.max(0, ...text.split(/\s+/).map((w) => ctx.measureText(w).width));
+  if (widest <= maxW || widest === 0) return size;
+  const fitted = Math.max(size * 0.45, size * (maxW / widest) * 0.98);
+  ctx.font = fontAt(fitted);
+  return fitted;
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, Math.min(r, h / 2, w / 2));
@@ -148,6 +161,10 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
             { key: "B", ref: st.B, x: im.xB, scale: 1 },
           ];
 
+  // Distancia entre columnas: los títulos nunca deben tocarse entre sí
+  const xs = slots.map((sl) => sl.x).sort((a, b) => a - b);
+  const colGap = xs.length > 1 ? Math.min(...xs.slice(1).map((x, i) => x - xs[i])) : Infinity;
+
   for (const slot of slots) {
     if (!slot.ref) continue;
     const subj = slot.ref.subjectId ? script.subjects[slot.ref.subjectId] : undefined;
@@ -157,13 +174,21 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
     // Título
     let title = slotTitle(slot.ref, script);
     if (t.titulos.mayusculas) title = title.toUpperCase();
-    // Los títulos se achican menos que las imágenes para seguir siendo legibles
-    const ts = t.titulos.tam * s * (slot.scale > 1 ? 1.1 : slot.scale < 1 ? 0.5 + slot.scale * 0.45 : 1);
-    ctx.font = `${t.titulos.peso} ${ts}px ${font(t.titulos.fuente, "montserrat")}`;
+    // Ni pisar al vecino ni salirse del borde del lienzo
+    const edgeRoom = 2 * Math.min(slot.x, BASE_W - slot.x) - 48;
+    const titleMaxW = Math.min(t.titulos.anchoMax * s * slot.scale, (colGap - 56) * sx, edgeRoom * sx);
     ctx.letterSpacing = `${t.titulos.tracking * s}px`;
+    const ts = fitSize(
+      ctx,
+      title,
+      (px) => `${t.titulos.peso} ${px}px ${font(t.titulos.fuente, "montserrat")}`,
+      // Los títulos se achican menos que las imágenes para seguir siendo legibles
+      t.titulos.tam * s * (slot.scale > 1 ? 1.1 : slot.scale < 1 ? 0.5 + slot.scale * 0.45 : 1),
+      titleMaxW,
+    );
     ctx.fillStyle = resolveColor(subj?.titleColor, t, resolveColor(t.titulos.color, t, "#111"));
     ctx.textAlign = "center";
-    const lines = wrap(ctx, title, t.titulos.anchoMax * s * slot.scale);
+    const lines = wrap(ctx, title, titleMaxW);
     const lh = ts * t.titulos.interlineado;
     const top = t.titulos.y * sy - ((lines.length - 1) * lh) / 2;
     lines.forEach((l, i) => ctx.fillText(l, slot.x * sx, top + i * lh));
@@ -216,9 +241,8 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
 
   // ── Rótulo central (trozo de la narración en modo auto, o texto fijo)
   if (frame.caption) {
-    const ts = t.texto.tam * s;
-    ctx.font = `${t.texto.peso} ${ts}px ${font(t.texto.fuente, "montserrat")}`;
     ctx.letterSpacing = `${t.texto.tracking * s}px`;
+    const ts = fitSize(ctx, frame.caption, (px) => `${t.texto.peso} ${px}px ${font(t.texto.fuente, "montserrat")}`, t.texto.tam * s, t.texto.anchoMax * s);
     ctx.textAlign = "center";
     const lines = wrap(ctx, frame.caption, t.texto.anchoMax * s);
     const lh = ts * t.texto.interlineado;

@@ -19,7 +19,7 @@ import { FrameCanvas } from "./FrameCanvas";
 import { LanguagePanel } from "./LanguagePanel";
 
 const TABS = [
-  { id: "fotograma", label: "Fotograma" },
+  { id: "fotograma", label: "Imagen" },
   { id: "recursos", label: "Recursos" },
   { id: "efectos", label: "Efectos" },
   { id: "diseno", label: "Diseño" },
@@ -205,17 +205,17 @@ export default function Studio() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(360px,1fr)_minmax(400px,1.05fr)_minmax(340px,380px)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(300px,340px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)_minmax(340px,380px)]">
         {/* ── Editor */}
         <section className="flex min-h-[420px] min-w-0 flex-col border-line bg-panel lg:border-r" aria-label="Editor de guion">
-          <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-3">
-            <span className="mr-2 font-mono text-[11px] text-faint">guion.vsl</span>
+          <div className="flex h-11 shrink-0 items-center gap-1 overflow-x-auto border-b border-line px-3 whitespace-nowrap [scrollbar-width:none]">
+            <span className="mr-2 shrink-0 font-mono text-[11px] text-faint">guion.vsl</span>
             {SNIPPETS.map((s) => (
               <button
                 key={s.label}
                 type="button"
                 onClick={() => editor.current?.insert(s.text)}
-                className="rounded-md px-2 py-1 text-[12px] text-muted transition-colors hover:bg-panel-3 hover:text-text"
+                className="shrink-0 rounded-md px-2 py-1 text-[12px] text-muted transition-colors hover:bg-panel-3 hover:text-text"
               >
                 + {s.label}
               </button>
@@ -351,8 +351,8 @@ export default function Studio() {
         </section>
 
         {/* ── Inspector */}
-        <aside className="flex min-h-[480px] min-w-0 flex-col border-line bg-panel lg:border-l" aria-label="Inspector">
-          <nav className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2" role="tablist">
+        <aside className="flex min-h-[480px] min-w-0 flex-col overflow-hidden border-line bg-panel lg:border-l" aria-label="Inspector">
+          <nav className="flex h-11 shrink-0 items-stretch overflow-x-auto border-b border-line px-1 [scrollbar-width:none]" role="tablist">
             {TABS.map((t) => (
               <button
                 key={t.id}
@@ -360,14 +360,14 @@ export default function Studio() {
                 role="tab"
                 aria-selected={tab === t.id}
                 onClick={() => setTab(t.id)}
-                className={`relative rounded-md px-2.5 py-1.5 text-[12px] transition-colors ${tab === t.id ? "text-text" : "text-faint hover:text-muted"}`}
+                className={`relative flex flex-1 shrink-0 items-center justify-center whitespace-nowrap px-1 text-[11.5px] transition-colors ${tab === t.id ? "text-text" : "text-faint hover:text-muted"}`}
               >
                 {t.label}
-                {tab === t.id && <span className="absolute inset-x-2.5 -bottom-[7px] h-[2px] rounded bg-accent" />}
+                {tab === t.id && <span className="absolute inset-x-1 bottom-0 h-[2px] rounded bg-accent" />}
               </button>
             ))}
           </nav>
-          <div key={tab} className="rise min-h-0 flex-1 overflow-y-auto p-4">
+          <div key={tab} className="rise min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
             {tab === "fotograma" && <FrameInfo frame={frame} rc={rc} onReveal={(l) => editor.current?.revealLine(l)} />}
             {tab === "recursos" && (
               <AssetsPanel
@@ -448,7 +448,7 @@ function FrameInfo({ frame, rc, onReveal }: { frame: Frame | null; rc: RenderCon
     <div className="space-y-5">
       <div>
         <p className="text-[11px] uppercase tracking-[0.16em] text-faint">Narración</p>
-        <p className="mt-2 font-display text-[28px] leading-[1.12] tracking-[-0.01em] text-balance">
+        <p className="mt-2 font-display text-[28px] leading-[1.12] tracking-[-0.01em] text-balance break-words">
           {frame.narration
             ? segs.map((s, i) =>
                 s.startsWith("[") ? (

@@ -134,10 +134,10 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
         <code className="font-mono text-amber">@estilo grupo.clave valor</code>, que tiene prioridad sobre estos controles.
       </p>
 
-      <label className="flex cursor-pointer items-center justify-between rounded-xl border border-line bg-panel-2 px-3 py-2.5 text-[13px]">
-        <span>Mostrar marcadores de imágenes faltantes</span>
-        <Toggle on={placeholders} onClick={() => onPlaceholders(!placeholders)} />
-      </label>
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-panel-2 px-3 py-2.5 text-[13px]">
+        <span id="lbl-placeholders">Mostrar marcadores de imágenes faltantes</span>
+        <Toggle on={placeholders} onClick={() => onPlaceholders(!placeholders)} labelledBy="lbl-placeholders" />
+      </div>
 
       {Object.entries(template).map(([g, vals]) => {
         const isOpen = open === g;
@@ -172,17 +172,19 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                   if (typeof v === "number") {
                     const [min, max, step] = range(k);
                     return (
-                      <div key={k} className="grid grid-cols-[104px_1fr_56px] items-center gap-2">
+                      <div key={k} className="grid grid-cols-[104px_minmax(0,1fr)_58px] items-center gap-2">
                         {label}
-                        <input id={id} type="range" className="rng" min={min} max={max} step={step} value={v} onChange={(e) => set(g, k, parseFloat(e.target.value))} />
                         <input
-                          type="number"
-                          aria-label={`${k} valor`}
-                          value={fmt(v)}
+                          id={id}
+                          type="range"
+                          className="rng w-full min-w-0"
+                          min={Math.min(min, v)}
+                          max={Math.max(max, v)}
                           step={step}
-                          onChange={(e) => set(g, k, parseFloat(e.target.value) || 0)}
-                          className="w-full rounded-md border border-line bg-ink px-1.5 py-1 text-right font-mono text-[11px] tabular-nums outline-none focus:border-accent"
+                          value={v}
+                          onChange={(e) => set(g, k, parseFloat(e.target.value))}
                         />
+                        <NumberField value={v} label={`${KEY_LABELS[k] ?? k} (valor)`} onCommit={(n) => set(g, k, n)} />
                       </div>
                     );
                   }
@@ -190,13 +192,13 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                     return (
                       <div key={k} className="flex items-center justify-between">
                         {label}
-                        <Toggle on={v} onClick={() => set(g, k, !v)} />
+                        <Toggle id={id} on={v} onClick={() => set(g, k, !v)} />
                       </div>
                     );
                   }
                   if (k === "fuente") {
                     return (
-                      <div key={k} className="grid grid-cols-[104px_1fr] items-center gap-2">
+                      <div key={k} className="grid grid-cols-[104px_minmax(0,1fr)] items-center gap-2">
                         {label}
                         <select
                           id={id}
@@ -215,7 +217,7 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                   }
                   if (k === "alineacion") {
                     return (
-                      <div key={k} className="grid grid-cols-[104px_1fr] items-center gap-2">
+                      <div key={k} className="grid grid-cols-[104px_minmax(0,1fr)] items-center gap-2">
                         {label}
                         <div className="flex gap-1">
                           {["izq", "centro"].map((a) => (
@@ -233,7 +235,7 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                     );
                   }
                   return (
-                    <div key={k} className="grid grid-cols-[104px_26px_1fr] items-center gap-2">
+                    <div key={k} className="grid grid-cols-[104px_26px_minmax(0,1fr)] items-center gap-2">
                       {label}
                       <input
                         id={id}
@@ -246,7 +248,7 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
                         aria-label={`${k} texto`}
                         value={String(v)}
                         onChange={(e) => set(g, k, e.target.value)}
-                        className="rounded-md border border-line bg-ink px-2 py-1 font-mono text-[11px] outline-none focus:border-accent"
+                        className="min-w-0 rounded-md border border-line bg-ink px-2 py-1 font-mono text-[11px] outline-none focus:border-accent"
                       />
                     </div>
                   );
@@ -292,16 +294,52 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
   );
 }
 
-export function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+/**
+ * Campo numérico que deja escribir libremente ("1.", "-", "0,5") y solo
+ * aplica el valor cuando es un número válido. Al salir, vuelve al valor real.
+ */
+function NumberField({ value, label, onCommit }: { value: number; label: string; onCommit: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      aria-label={label}
+      value={draft ?? fmt(value)}
+      onFocus={(e) => {
+        setDraft(fmt(value));
+        e.currentTarget.select();
+      }}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = parseFloat(e.target.value.replace(",", "."));
+        if (isFinite(n)) onCommit(n);
+      }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const stepSize = e.shiftKey ? 10 : Number.isInteger(value) ? 1 : 0.01;
+          const n = Math.round((value + (e.key === "ArrowUp" ? stepSize : -stepSize)) * 1000) / 1000;
+          onCommit(n);
+          setDraft(fmt(n));
+        }
+      }}
+      className="w-full min-w-0 rounded-md border border-line bg-ink px-1.5 py-1 text-right font-mono text-[11px] tabular-nums outline-none focus:border-accent"
+    />
+  );
+}
+
+export function Toggle({ id, on, onClick, labelledBy }: { id?: string; on: boolean; onClick: () => void; labelledBy?: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
-      onClick={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
+      id={id}
+      aria-labelledby={labelledBy}
+      onClick={onClick}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-300 ${on ? "bg-accent" : "bg-panel-3"}`}
     >
       <span
