@@ -100,11 +100,20 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
  * Achica la fuente si alguna palabra no cabe en el ancho máximo
  * (así un título largo como "Hypersonic" no se sale de su columna). Deja ctx.font aplicado.
  */
-function fitSize(ctx: CanvasRenderingContext2D, text: string, fontAt: (px: number) => string, size: number, maxW: number): number {
+function fitSize(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  fontAt: (px: number) => string,
+  size: number,
+  maxW: number,
+  enabled = true,
+  minRatio = 0.45,
+): number {
   ctx.font = fontAt(size);
+  if (!enabled) return size;
   const widest = Math.max(0, ...text.split(/\s+/).map((w) => ctx.measureText(w).width));
   if (widest <= maxW || widest === 0) return size;
-  const fitted = Math.max(size * 0.45, size * (maxW / widest) * 0.98);
+  const fitted = Math.max(size * minRatio, size * (maxW / widest) * 0.98);
   ctx.font = fontAt(fitted);
   return fitted;
 }
@@ -172,29 +181,27 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
     ctx.globalAlpha = dim ? t.foco.opacidad : 1;
 
     // Título
-    let title = slotTitle(slot.ref, script);
-    if (t.titulos.mayusculas) title = title.toUpperCase();
-    // Ni pisar al vecino ni salirse del borde del lienzo
-    const edgeRoom = 2 * Math.min(slot.x, BASE_W - slot.x) - 48;
-    const titleMaxW = Math.min(t.titulos.anchoMax * s * slot.scale, (colGap - 56) * sx, edgeRoom * sx);
-    ctx.letterSpacing = `${t.titulos.tracking * s}px`;
-    const ts = fitSize(
-      ctx,
-      title,
-      (px) => `${t.titulos.peso} ${px}px ${font(t.titulos.fuente, "montserrat")}`,
-      // Los títulos se achican menos que las imágenes para seguir siendo legibles
-      t.titulos.tam * s * (slot.scale > 1 ? 1.1 : slot.scale < 1 ? 0.5 + slot.scale * 0.45 : 1),
-      titleMaxW,
-    );
-    ctx.fillStyle = resolveColor(subj?.titleColor, t, resolveColor(t.titulos.color, t, "#111"));
-    ctx.textAlign = "center";
-    const lines = wrap(ctx, title, titleMaxW);
-    const lh = ts * t.titulos.interlineado;
-    const top = t.titulos.y * sy - ((lines.length - 1) * lh) / 2;
-    lines.forEach((l, i) => ctx.fillText(l, slot.x * sx, top + i * lh));
-    ctx.letterSpacing = "0px";
+    const tt = t.titulos;
+    if (tt.visible) {
+      let title = slotTitle(slot.ref, script);
+      if (tt.mayusculas) title = title.toUpperCase();
+      // Ni pisar al vecino ni salirse del borde del lienzo
+      const edgeRoom = 2 * Math.min(slot.x, BASE_W - slot.x) - tt.margenBorde * 2;
+      const titleMaxW = Math.min(tt.anchoMax * s * slot.scale, (colGap - tt.separacion) * sx, edgeRoom * sx);
+      const scale = layout === "centro" ? tt.escalaCentro : layout === "trio" ? tt.escalaTrio : 1;
+      ctx.letterSpacing = `${tt.tracking * s}px`;
+      const ts = fitSize(ctx, title, (px) => `${tt.peso} ${px}px ${font(tt.fuente, "montserrat")}`, tt.tam * s * scale, titleMaxW, tt.ajustar, tt.tamMinimo);
+      ctx.fillStyle = resolveColor(subj?.titleColor, t, resolveColor(tt.color, t, "#111"));
+      ctx.textAlign = "center";
+      const lines = wrap(ctx, title, titleMaxW);
+      const lh = ts * tt.interlineado;
+      const top = tt.y * sy - ((lines.length - 1) * lh) / 2;
+      lines.forEach((l, i) => ctx.fillText(l, slot.x * sx, top + i * lh));
+      ctx.letterSpacing = "0px";
+    }
 
     // Imagen
+    if (!t.imagenes.visible) continue;
     const cx = (slot.x + (subj?.dx ?? 0)) * sx;
     const cy = (t.imagenes.y + (subj?.dy ?? 0)) * sy;
     const k = slot.scale * (subj?.scale ?? 1);
@@ -207,30 +214,32 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
     ctx.rotate((((subj?.rotation ?? 0) + t.imagenes.rotacion) * Math.PI) / 180);
     if (img) drawContained(ctx, img, 0, 0, bw, bh);
     else if (rc.placeholders) {
-      roundRect(ctx, -bw / 2, -bh / 2, bw, bh, 28 * s);
-      ctx.fillStyle = "rgba(17,17,17,0.04)";
+      const mk = t.marcador;
+      roundRect(ctx, -bw / 2, -bh / 2, bw, bh, mk.radio * s);
+      ctx.fillStyle = resolveColor(mk.fondo, t, "transparent");
       ctx.fill();
-      ctx.setLineDash([14 * s, 10 * s]);
-      ctx.lineWidth = 3 * s;
-      ctx.strokeStyle = "rgba(17,17,17,0.25)";
+      ctx.setLineDash([mk.grosor * 4.5 * s, mk.grosor * 3.3 * s]);
+      ctx.lineWidth = mk.grosor * s;
+      ctx.strokeStyle = resolveColor(mk.borde, t, "#999");
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(17,17,17,0.45)";
-      ctx.font = `700 ${22 * s}px ${font("inter", "inter")}`;
-      ctx.letterSpacing = `${3 * s}px`;
-      ctx.fillText(imageFailed(src) ? `IMAGEN ${slot.key} · NO CARGA` : `IMAGEN ${slot.key}`, 0, -bh / 2 + 44 * s);
+      ctx.fillStyle = resolveColor(mk.texto, t, "#777");
+      ctx.font = `700 ${mk.tamEtiqueta * s}px ${font("inter", "inter")}`;
+      ctx.letterSpacing = `${mk.tamEtiqueta * 0.14 * s}px`;
+      ctx.fillText(imageFailed(src) ? `IMAGEN ${slot.key} · NO CARGA` : `IMAGEN ${slot.key}`, 0, -bh / 2 + mk.tamEtiqueta * 2 * s);
       ctx.letterSpacing = "0px";
-      ctx.font = `400 ${24 * s}px ${font("inter", "inter")}`;
+      ctx.font = `400 ${mk.tamTexto * s}px ${font("inter", "inter")}`;
       const prompt = subj?.prompt ?? "Sin descripción. Agrega «imagen:» al sujeto.";
-      const pl = wrap(ctx, prompt, bw - 60 * s).slice(0, 7);
-      pl.forEach((l, i) => ctx.fillText(l, 0, -((pl.length - 1) * 32 * s) / 2 + i * 32 * s + 16 * s));
+      const lh = mk.tamTexto * 1.33 * s;
+      const pl = wrap(ctx, prompt, bw - mk.tamTexto * 2.5 * s).slice(0, 7);
+      pl.forEach((l, i) => ctx.fillText(l, 0, -((pl.length - 1) * lh) / 2 + i * lh + lh / 2));
     }
     ctx.restore();
   }
   ctx.globalAlpha = 1;
 
   // ── Muñeco
-  if (st.mascot) {
+  if (st.mascot && t.muneco.visible) {
     const img = getImage(mascotSource(st.mascot, rc, t));
     if (img) {
       const h = t.muneco.alto * s;
@@ -240,9 +249,17 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
   }
 
   // ── Rótulo central (trozo de la narración en modo auto, o texto fijo)
-  if (frame.caption) {
+  if (frame.caption && t.texto.visible) {
     ctx.letterSpacing = `${t.texto.tracking * s}px`;
-    const ts = fitSize(ctx, frame.caption, (px) => `${t.texto.peso} ${px}px ${font(t.texto.fuente, "montserrat")}`, t.texto.tam * s, t.texto.anchoMax * s);
+    const ts = fitSize(
+      ctx,
+      frame.caption,
+      (px) => `${t.texto.peso} ${px}px ${font(t.texto.fuente, "montserrat")}`,
+      t.texto.tam * s,
+      t.texto.anchoMax * s,
+      t.texto.ajustar,
+      t.texto.tamMinimo,
+    );
     ctx.textAlign = "center";
     const lines = wrap(ctx, frame.caption, t.texto.anchoMax * s);
     const lh = ts * t.texto.interlineado;
@@ -258,7 +275,7 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
   }
 
   // ── Textos extra
-  for (const e of Object.values(st.extras)) {
+  for (const e of t.extra.visible ? Object.values(st.extras) : []) {
     const size = (e.size ?? t.extra.tam) * s;
     ctx.save();
     ctx.translate((e.x / 100) * W, (e.y / 100) * H);
@@ -266,13 +283,13 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
     ctx.font = `${e.weight ?? t.extra.peso} ${size}px ${font(e.font, t.extra.fuente)}`;
     ctx.textAlign = e.align === "izq" ? "left" : e.align === "der" ? "right" : "center";
     const lines = e.text.split("\n");
-    const lh = size * 1.1;
+    const lh = size * t.extra.interlineado;
     const y0 = -((lines.length - 1) * lh) / 2;
     if (e.bg) {
       const mw = Math.max(...lines.map((l) => ctx.measureText(l).width));
-      const px = size * 0.45;
+      const px = size * t.extra.fondoRelleno;
       const x0 = e.align === "izq" ? -px : e.align === "der" ? -mw - px : -mw / 2 - px;
-      roundRect(ctx, x0, y0 - lh / 2 - px * 0.4, mw + px * 2, lines.length * lh + px * 0.8, size * 0.3);
+      roundRect(ctx, x0, y0 - lh / 2 - px * 0.4, mw + px * 2, lines.length * lh + px * 0.8, size * t.extra.fondoRadio);
       ctx.fillStyle = resolveColor(e.bg, t, e.bg);
       ctx.fill();
     }
@@ -285,7 +302,7 @@ export function renderFrame(ctx: CanvasRenderingContext2D, frame: Frame | null, 
   drawOverlayEffects(ctx, st.effects, t, W, H, seed);
 
   // ── Subtítulo
-  if (frame.subtitle) {
+  if (frame.subtitle && t.subtitulo.visible) {
     const sb = t.subtitulo;
     const ts = sb.tam * s;
     ctx.font = `${sb.peso} ${ts}px ${font(sb.fuente, "inter")}`;

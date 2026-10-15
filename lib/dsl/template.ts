@@ -22,6 +22,7 @@ export interface Template {
   lienzo: { fondo: string };
   paleta: { acento: string; tinta: string; suave: string };
   titulos: {
+    visible: boolean;
     fuente: FontKey;
     tam: number;
     peso: number;
@@ -31,8 +32,21 @@ export interface Template {
     tracking: number;
     mayusculas: boolean;
     anchoMax: number;
+    /** achicar la letra si una palabra no cabe */
+    ajustar: boolean;
+    /** tamaño mínimo al achicar (proporción del tamaño original) */
+    tamMinimo: number;
+    /** espacio mínimo entre títulos vecinos (px) */
+    separacion: number;
+    /** margen mínimo contra el borde del lienzo (px) */
+    margenBorde: number;
+    /** escala del título con layout centro */
+    escalaCentro: number;
+    /** escala del título con tres sujetos */
+    escalaTrio: number;
   };
   imagenes: {
+    visible: boolean;
     xA: number;
     xB: number;
     xCentro: number;
@@ -46,9 +60,31 @@ export interface Template {
     trioXC: number;
     trioEscala: number;
   };
-  texto: { fuente: FontKey; tam: number; peso: number; color: string; y: number; anchoMax: number; tracking: number; interlineado: number };
-  muneco: { x: number; y: number; alto: number; trazo: string; corbata: string; camisa: string; grosor: number };
+  marcador: {
+    fondo: string;
+    borde: string;
+    texto: string;
+    radio: number;
+    grosor: number;
+    tamEtiqueta: number;
+    tamTexto: number;
+  };
+  texto: {
+    visible: boolean;
+    fuente: FontKey;
+    tam: number;
+    peso: number;
+    color: string;
+    y: number;
+    anchoMax: number;
+    tracking: number;
+    interlineado: number;
+    ajustar: boolean;
+    tamMinimo: number;
+  };
+  muneco: { visible: boolean; x: number; y: number; alto: number; trazo: string; corbata: string; camisa: string; grosor: number };
   subtitulo: {
+    visible: boolean;
     fuente: FontKey;
     tam: number;
     peso: number;
@@ -65,21 +101,28 @@ export interface Template {
     alineacion: "izq" | "centro";
   };
   foco: { opacidad: number };
-  extra: { fuente: FontKey; tam: number; peso: number; color: string };
+  extra: { visible: boolean; fuente: FontKey; tam: number; peso: number; color: string; interlineado: number; fondoRelleno: number; fondoRadio: number };
   efectos: {
     lineasColor: string;
     lineasCantidad: number;
     lineasHueco: number;
     lineasGrosor: number;
     velocidadColor: string;
+    velocidadCantidad: number;
+    velocidadAncho: number;
     destelloColor: string;
     destelloTrazo: string;
+    destelloPicos: number;
+    destelloGrosor: number;
     bordeColor: string;
     bordeGrosor: number;
     bordeRadio: number;
     vinetaColor: string;
     vinetaFuerza: number;
     tramaColor: string;
+    tramaOpacidad: number;
+    tramaPaso: number;
+    tramaAlcance: number;
     temblorFuerza: number;
     zoomPaso: number;
   };
@@ -88,11 +131,30 @@ export interface Template {
 export const DEFAULT_TEMPLATE: Template = {
   lienzo: { fondo: "#ffffff" },
   paleta: { acento: "#c62828", tinta: "#111111", suave: "#8a8a8a" },
-  titulos: { fuente: "montserrat", tam: 78, peso: 800, color: "#111111", y: 300, interlineado: 1.0, tracking: -0.5, mayusculas: false, anchoMax: 470 },
-  imagenes: { xA: 290, xB: 790, xCentro: 540, y: 600, ancho: 470, alto: 400, rotacion: 0, escalaCentro: 1.3, trioXA: 190, trioXB: 540, trioXC: 890, trioEscala: 0.68 },
-  texto: { fuente: "montserrat", tam: 56, peso: 800, color: "#111111", y: 960, anchoMax: 960, tracking: -0.3, interlineado: 1.1 },
-  muneco: { x: 540, y: 1430, alto: 780, trazo: "#111111", corbata: "#c62828", camisa: "#ffffff", grosor: 7 },
+  titulos: {
+    visible: true,
+    fuente: "montserrat",
+    tam: 78,
+    peso: 800,
+    color: "#111111",
+    y: 300,
+    interlineado: 1.0,
+    tracking: -0.5,
+    mayusculas: false,
+    anchoMax: 470,
+    ajustar: true,
+    tamMinimo: 0.45,
+    separacion: 56,
+    margenBorde: 24,
+    escalaCentro: 1.1,
+    escalaTrio: 0.81,
+  },
+  imagenes: { visible: true, xA: 290, xB: 790, xCentro: 540, y: 600, ancho: 470, alto: 400, rotacion: 0, escalaCentro: 1.3, trioXA: 190, trioXB: 540, trioXC: 890, trioEscala: 0.68 },
+  marcador: { fondo: "rgba(17,17,17,0.04)", borde: "rgba(17,17,17,0.25)", texto: "rgba(17,17,17,0.45)", radio: 28, grosor: 3, tamEtiqueta: 22, tamTexto: 24 },
+  texto: { visible: true, fuente: "montserrat", tam: 56, peso: 800, color: "#111111", y: 960, anchoMax: 960, tracking: -0.3, interlineado: 1.1, ajustar: true, tamMinimo: 0.45 },
+  muneco: { visible: true, x: 540, y: 1430, alto: 780, trazo: "#111111", corbata: "#c62828", camisa: "#ffffff", grosor: 7 },
   subtitulo: {
+    visible: true,
     fuente: "inter",
     tam: 41,
     peso: 400,
@@ -109,21 +171,28 @@ export const DEFAULT_TEMPLATE: Template = {
     alineacion: "izq",
   },
   foco: { opacidad: 0.25 },
-  extra: { fuente: "montserrat", tam: 60, peso: 800, color: "#111111" },
+  extra: { visible: true, fuente: "montserrat", tam: 60, peso: 800, color: "#111111", interlineado: 1.1, fondoRelleno: 0.45, fondoRadio: 0.3 },
   efectos: {
     lineasColor: "#111111",
     lineasCantidad: 120,
     lineasHueco: 0.62,
     lineasGrosor: 1,
     velocidadColor: "#111111",
+    velocidadCantidad: 46,
+    velocidadAncho: 0.26,
     destelloColor: "#ffd23f",
     destelloTrazo: "#111111",
+    destelloPicos: 16,
+    destelloGrosor: 6,
     bordeColor: "#c62828",
     bordeGrosor: 24,
     bordeRadio: 0,
     vinetaColor: "#000000",
     vinetaFuerza: 0.35,
     tramaColor: "#111111",
+    tramaOpacidad: 0.22,
+    tramaPaso: 22,
+    tramaAlcance: 0.42,
     temblorFuerza: 1,
     zoomPaso: 0.035,
   },
@@ -155,6 +224,8 @@ const GROUP_ALIASES: Record<string, string> = {
   sub: "subtitulo",
   subtitulos: "subtitulo",
   fondo: "lienzo",
+  marcadores: "marcador",
+  placeholder: "marcador",
   efecto: "efectos",
   fx: "efectos",
 };

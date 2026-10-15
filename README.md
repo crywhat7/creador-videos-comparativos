@@ -36,7 +36,7 @@ foco: B
 - `[curioso]`, `[pausa 0.5]` = dirección de voz (no se lee ni se ve). `| texto` = subtítulo distinto. `{2s, sin-sub}` = opciones del fotograma.
 - `C: id` agrega un tercer sujeto (A izquierda, B al medio, C derecha).
 - `efecto: lineas-anime, temblor` agrega efectos estilo anime (líneas, impacto, borde, viñeta, trama, temblor, zoom).
-- `@estilo grupo.clave valor` cambia cualquier parte de la plantilla (tamaños, posiciones, fuentes, colores).
+- `@estilo grupo.clave valor` cambia cualquier parte de la plantilla (tamaños, posiciones, fuentes, colores). `@estilo subtitulo.visible no` oculta un elemento en todo el video.
 
 La referencia completa está en la pestaña **Lenguaje** del estudio.
 

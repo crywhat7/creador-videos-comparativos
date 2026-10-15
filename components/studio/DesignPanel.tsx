@@ -14,9 +14,29 @@ const GROUP_LABELS: Record<string, string> = {
   foco: "Foco",
   extra: "Textos extra",
   efectos: "Efectos",
+  marcador: "Marcadores de imagen",
 };
 
 const KEY_LABELS: Record<string, string> = {
+  visible: "Visible",
+  ajustar: "Achicar si no cabe",
+  tamMinimo: "Tamaño mínimo",
+  separacion: "Separación",
+  margenBorde: "Margen al borde",
+  escalaTrio: "Escala (trío)",
+  borde: "Borde",
+  texto: "Texto",
+  tamEtiqueta: "Tam. etiqueta",
+  tamTexto: "Tam. texto",
+  fondoRelleno: "Fondo: relleno",
+  fondoRadio: "Fondo: radio",
+  velocidadCantidad: "Velocidad: cantidad",
+  velocidadAncho: "Velocidad: ancho",
+  destelloPicos: "Impacto: picos",
+  destelloGrosor: "Impacto: grosor",
+  tramaOpacidad: "Trama: opacidad",
+  tramaPaso: "Trama: tamaño",
+  tramaAlcance: "Trama: alcance",
   fondo: "Fondo",
   acento: "Acento",
   tinta: "Tinta",
@@ -70,6 +90,18 @@ const KEY_LABELS: Record<string, string> = {
 };
 
 function range(key: string): [number, number, number] {
+  if (key === "tamMinimo" || key === "tramaAlcance") return [0.1, 1, 0.01];
+  if (key === "separacion") return [0, 200, 1];
+  if (key === "margenBorde") return [0, 150, 1];
+  if (key === "escalaTrio") return [0.4, 1.5, 0.01];
+  if (key === "tamEtiqueta" || key === "tamTexto") return [8, 80, 1];
+  if (key === "fondoRelleno") return [0, 1.5, 0.01];
+  if (key === "fondoRadio" || key === "tramaOpacidad") return [0, 1, 0.01];
+  if (key === "velocidadCantidad") return [5, 200, 1];
+  if (key === "velocidadAncho") return [0.05, 0.6, 0.01];
+  if (key === "destelloPicos") return [6, 40, 1];
+  if (key === "destelloGrosor") return [0, 20, 0.5];
+  if (key === "tramaPaso") return [6, 80, 1];
   if (key === "lineasCantidad") return [10, 300, 1];
   if (key === "lineasHueco") return [0.2, 1.2, 0.01];
   if (key === "lineasGrosor" || key === "temblorFuerza") return [0.2, 4, 0.1];
@@ -149,7 +181,10 @@ export function DesignPanel({ template, onChange, placeholders, onPlaceholders, 
               className="flex w-full items-center justify-between px-3 py-2.5 text-left text-[13px] font-medium transition-colors hover:bg-panel-3"
               aria-expanded={isOpen}
             >
-              <span>{GROUP_LABELS[g] ?? g}</span>
+              <span className="flex items-center gap-2">
+                {GROUP_LABELS[g] ?? g}
+                {(vals as Record<string, unknown>).visible === false && <span className="rounded bg-panel-3 px-1.5 text-[10px] text-faint">oculto</span>}
+              </span>
               <span className={`text-faint transition-transform duration-500 ${isOpen ? "rotate-45" : ""}`} style={{ transitionTimingFunction: "var(--ease-out)" }}>
                 +
               </span>

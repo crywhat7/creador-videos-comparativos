@@ -41,7 +41,7 @@ export function applyCameraEffects(ctx: CanvasRenderingContext2D, fx: Effect[], 
 /** Estallido de cómic detrás del rótulo central */
 export function drawBurst(ctx: CanvasRenderingContext2D, e: Effect, t: Template, cx: number, cy: number, w: number, h: number, s: number, seed: number) {
   const r = rng(seed * 104729);
-  const spikes = Math.round(num(e.opts.picos, 16));
+  const spikes = Math.round(num(e.opts.picos, t.efectos.destelloPicos));
   const rx = w / 2 + 70 * s;
   const ry = h / 2 + 60 * s;
   ctx.save();
@@ -58,7 +58,7 @@ export function drawBurst(ctx: CanvasRenderingContext2D, e: Effect, t: Template,
   ctx.fillStyle = resolveColor(e.opts.color, t, resolveColor(t.efectos.destelloColor, t, "#ffd23f"));
   ctx.fill();
   ctx.lineJoin = "round";
-  ctx.lineWidth = num(e.opts.grosor, 6) * s;
+  ctx.lineWidth = num(e.opts.grosor, t.efectos.destelloGrosor) * s;
   ctx.strokeStyle = resolveColor(e.opts.trazo, t, resolveColor(t.efectos.destelloTrazo, t, "#111"));
   ctx.stroke();
   ctx.restore();
@@ -73,9 +73,9 @@ export function drawOverlayEffects(ctx: CanvasRenderingContext2D, fx: Effect[], 
   if (trama) {
     ctx.save();
     ctx.fillStyle = resolveColor(trama.opts.color, t, resolveColor(E.tramaColor, t, "#111"));
-    ctx.globalAlpha = num(trama.opts.opacidad, 0.22);
-    const step = num(trama.opts.paso, 22) * s;
-    const reach = num(trama.opts.alcance, 0.42);
+    ctx.globalAlpha = num(trama.opts.opacidad, E.tramaOpacidad);
+    const step = num(trama.opts.paso, E.tramaPaso) * s;
+    const reach = num(trama.opts.alcance, E.tramaAlcance);
     const corners: [number, number][] = [
       [0, 0],
       [W, H],
@@ -128,8 +128,8 @@ export function drawOverlayEffects(ctx: CanvasRenderingContext2D, fx: Effect[], 
   const vel = findEffect(fx, "velocidad");
   if (vel) {
     const r = rng(seed * 32452843);
-    const n = Math.round(num(vel.opts.cantidad, 46));
-    const margin = num(vel.opts.ancho, 0.26) * W;
+    const n = Math.round(num(vel.opts.cantidad, E.velocidadCantidad));
+    const margin = num(vel.opts.ancho, E.velocidadAncho) * W;
     ctx.save();
     ctx.fillStyle = resolveColor(vel.opts.color, t, resolveColor(E.velocidadColor, t, "#111"));
     for (let i = 0; i < n; i++) {
