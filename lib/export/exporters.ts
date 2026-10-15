@@ -82,7 +82,45 @@ export function toNarrationMarkdown(script: ParsedScript): string {
     if (b.note) out.push(`> _Nota de dirección: ${b.note}_`);
     out.push("");
   }
+  out.push("## Después de generar el audio: tiempos", "");
+  out.push(
+    "Para sincronizar el video, devuelve también los tiempos reales de cada línea del audio, una por renglón, con este formato exacto (o un SRT / JSON con tiempos por palabra si tu herramienta lo exporta):",
+    "",
+    "```text",
+    "NNN  mm:ss.s → mm:ss.s  texto de la línea",
+    "```",
+    "",
+    "Luego, en Versus: Exportar → Video final → pega esos tiempos junto al audio.",
+  );
   return out.join("\n");
+}
+
+/**
+ * Prompt para pedirle a la herramienta de voz (o a una IA que escuche el audio)
+ * los tiempos reales de cada línea, en el formato que Versus sabe leer.
+ */
+export function toTimingPrompt(script: ParsedScript): string {
+  const lines = script.beats.filter((b) => b.clean).map((b, i) => `${pad3(i + 1)}  ${b.clean}`);
+  return [
+    `Con el audio que generaste para el guion «${script.meta.titulo}», dame los tiempos REALES de cada línea, medidos en el audio (no estimados).`,
+    "",
+    "Formato exacto, una línea por renglón, sin texto adicional ni tablas:",
+    "NNN  mm:ss.s → mm:ss.s  texto de la línea",
+    "",
+    "Reglas:",
+    "- NNN es el número de la línea del guion (001, 002…), en el mismo orden.",
+    "- El primer tiempo es cuando EMPIEZA a oírse la primera palabra de la línea; el segundo, cuando termina la última.",
+    "- Usa una décima de segundo de precisión (00:12.3).",
+    "- Copia el texto de la línea tal cual, sin etiquetas entre corchetes.",
+    "- Si puedes exportar subtítulos (SRT) o tiempos por palabra (JSON), también sirven y son aún mejores.",
+    "",
+    "Ejemplo:",
+    "001  00:00.0 → 00:02.5  ¿Izquierda o derecha?",
+    "002  00:02.6 → 00:06.0  Spoiler: ninguna se parece a lo que dicen ser",
+    "",
+    "Líneas del guion:",
+    ...lines,
+  ].join("\n");
 }
 
 export function toPlainText(script: ParsedScript): string {

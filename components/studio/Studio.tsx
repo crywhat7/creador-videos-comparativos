@@ -17,6 +17,9 @@ import { Editor, type EditorHandle } from "./Editor";
 import { ExportPanel } from "./ExportPanel";
 import { FrameCanvas } from "./FrameCanvas";
 import { LanguagePanel } from "./LanguagePanel";
+import { useVoiceSync } from "./useVoiceSync";
+import { VideoCard } from "./VideoCard";
+import { frameAtTime } from "@/lib/video/sync";
 
 const TABS = [
   { id: "fotograma", label: "Imagen" },
@@ -125,16 +128,6 @@ export default function Studio() {
     [frames],
   );
 
-  // ── Reproducción con duraciones estimadas
-  useEffect(() => {
-    if (!playing || !frame) return;
-    const id = setTimeout(() => {
-      if (current >= frames.length - 1) setPlaying(false);
-      else go(current + 1);
-    }, frame.duration * 1000);
-    return () => clearTimeout(id);
-  }, [playing, frame, current, frames.length, go]);
-
   // ── Atajos de teclado fuera del editor
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -166,6 +159,45 @@ export default function Studio() {
     putAsset(key, dataUrl);
   };
 
+  // ── Voz: audio real + tiempos → tiempo de cada imagen
+  const voice = useVoiceSync(script, assets, onAsset);
+  const sync = voice.sync;
+  const audioEl = useRef<HTMLAudioElement>(null);
+  const currentRef = useRef(current);
+  useEffect(() => {
+    currentRef.current = current;
+  }, [current]);
+
+  // ── Reproducción sin audio: duraciones estimadas
+  useEffect(() => {
+    if (!playing || !frame || sync) return;
+    const id = setTimeout(() => {
+      if (current >= frames.length - 1) setPlaying(false);
+      else go(current + 1);
+    }, frame.duration * 1000);
+    return () => clearTimeout(id);
+  }, [playing, frame, current, frames.length, go, sync]);
+
+  // ── Reproducción con la voz real: la imagen sigue al audio
+  useEffect(() => {
+    const el = audioEl.current;
+    if (!playing || !sync || !el) return;
+    el.currentTime = sync.starts[currentRef.current] ?? 0;
+    el.play().catch(() => setPlaying(false));
+    let raf = 0;
+    const loop = () => {
+      const i = frameAtTime(sync, el.currentTime);
+      if (i !== currentRef.current) setSelected(i);
+      if (el.ended) setPlaying(false);
+      else raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      el.pause();
+    };
+  }, [playing, sync]);
+
   const errors = diagnostics.filter((d) => d.level === "error").length;
   const warns = diagnostics.filter((d) => d.level === "warn").length;
 
@@ -175,6 +207,7 @@ export default function Studio() {
 
   return (
     <div className="flex h-screen min-h-[640px] flex-col overflow-hidden bg-ink text-text">
+      <audio ref={audioEl} src={voice.voice?.url} preload="auto" className="hidden" onEnded={() => setPlaying(false)} />
       {/* ── Barra superior */}
       <header className="flex h-14 shrink-0 items-center gap-5 border-b border-line px-5">
         <div className="flex items-baseline gap-2">
@@ -295,7 +328,15 @@ export default function Studio() {
             </div>
             {frame && (
               <span className="absolute right-6 bottom-3 font-mono text-[11px] text-faint tabular-nums">
-                {fmtTime(frame.start)} · {frame.duration.toFixed(1)}s{frame.explicitDuration ? " fija" : ""}
+                {sync ? (
+                  <span className="text-teal">
+                    voz {fmtTime(sync.starts[current] ?? 0)} · {(sync.durations[current] ?? 0).toFixed(2)}s
+                  </span>
+                ) : (
+                  <>
+                    {fmtTime(frame.start)} · {frame.duration.toFixed(1)}s{frame.explicitDuration ? " fija" : ""}
+                  </>
+                )}
               </span>
             )}
           </div>
@@ -384,6 +425,15 @@ export default function Studio() {
               <DesignPanel template={template} onChange={setTemplate} placeholders={placeholders} onPlaceholders={setPlaceholders} overrides={script.globalStyle} />
             )}
             {tab === "exportar" && (
+              <div className="space-y-2.5">
+              <VideoCard
+                rc={rc}
+                voice={voice}
+                current={current}
+                playing={playing}
+                onTogglePlay={() => setPlaying((p) => !p)}
+                onSeek={(i) => go(i, false)}
+              />
               <ExportPanel
                 rc={rc}
                 source={source}
@@ -394,6 +444,7 @@ export default function Studio() {
                   setSelected(0);
                 }}
               />
+              </div>
             )}
             {tab === "lenguaje" && <LanguagePanel onInsert={(t) => editor.current?.insert(t)} />}
           </div>
