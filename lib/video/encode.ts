@@ -18,10 +18,21 @@ export function videoSupported(): boolean {
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
+/**
+ * Se fuerza el codificador por SOFTWARE de Chrome (OpenH264). El de hardware de Windows
+ * (Media Foundation) genera H.264 con NAL poco comunes y descarta cuadros en escenas
+ * estáticas: el resultado no se reproduce en el Reproductor de Windows ni en varias apps.
+ * Constrained Baseline es el perfil que reproduce cualquier aparato.
+ */
 async function pickVideoConfig(width: number, height: number, fps: number): Promise<VideoEncoderConfig> {
-  // High → Main → Baseline, nivel 4.0/5.1 según el tamaño
-  for (const codec of ["avc1.640028", "avc1.4d0028", "avc1.640033", "avc1.42e028"]) {
-    const cfg: VideoEncoderConfig = { codec, width, height, bitrate: 6_000_000, framerate: fps, avc: { format: "avc" } };
+  const base = { width, height, bitrate: 8_000_000, bitrateMode: "variable", framerate: fps, latencyMode: "quality", avc: { format: "avc" } } as const;
+  const candidates: VideoEncoderConfig[] = [
+    { ...base, codec: "avc1.42e028", hardwareAcceleration: "prefer-software" }, // Constrained Baseline 4.0
+    { ...base, codec: "avc1.42e032", hardwareAcceleration: "prefer-software" }, // Constrained Baseline 5.0
+    { ...base, codec: "avc1.4d0028", hardwareAcceleration: "prefer-software" }, // Main 4.0
+    { ...base, codec: "avc1.42e028" }, // último recurso: lo que tenga el navegador
+  ];
+  for (const cfg of candidates) {
     const res = await VideoEncoder.isConfigSupported(cfg);
     if (res.supported) return cfg;
   }
