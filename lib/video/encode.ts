@@ -39,6 +39,33 @@ async function pickVideoConfig(width: number, height: number, fps: number): Prom
   throw new Error("Este navegador no puede codificar H.264. Usa Chrome o Edge actualizados.");
 }
 
+/**
+ * Arma la cabecera avcC del MP4 con el SPS/PPS que vienen dentro de la imagen clave.
+ * En Windows, Chrome entrega a veces un avcC mal formado (byte de cabecera NAL duplicado y
+ * sin bits reservados): los navegadores lo toleran, pero el Reproductor de Windows rechaza
+ * el video («avc1 no se admite»). Devuelve null si la imagen no trae SPS/PPS.
+ */
+function buildAvcC(sample: Uint8Array): Uint8Array | null {
+  let sps: Uint8Array | null = null;
+  let pps: Uint8Array | null = null;
+  for (let o = 0; o + 4 <= sample.length; ) {
+    const len = ((sample[o] << 24) | (sample[o + 1] << 16) | (sample[o + 2] << 8) | sample[o + 3]) >>> 0;
+    if (len === 0 || o + 4 + len > sample.length) return null; // no son NAL con prefijo de 4 bytes
+    const nal = sample.subarray(o + 4, o + 4 + len);
+    const type = nal[0] & 31;
+    if (type === 7 && !sps) sps = nal;
+    if (type === 8 && !pps) pps = nal;
+    o += 4 + len;
+  }
+  if (!sps || !pps || sps.length < 4) return null;
+  const out = new Uint8Array(11 + sps.length + pps.length);
+  out.set([1, sps[1], sps[2], sps[3], 0xff, 0xe1, sps.length >> 8, sps.length & 255]);
+  out.set(sps, 8);
+  out.set([1, pps.length >> 8, pps.length & 255], 8 + sps.length);
+  out.set(pps, 11 + sps.length);
+  return out;
+}
+
 async function resample(buf: AudioBuffer, rate: number): Promise<AudioBuffer> {
   if (buf.sampleRate === rate) return buf;
   const ctx = new OfflineAudioContext(buf.numberOfChannels, Math.ceil(buf.duration * rate), rate);
@@ -82,7 +109,18 @@ export async function renderVideo({ rc, sync, audio, fps = 30, onProgress, signa
   });
 
   let failure: unknown = null;
-  const venc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (e) => (failure = e) });
+  const venc = new VideoEncoder({
+    output: (chunk, meta) => {
+      if (meta?.decoderConfig) {
+        const data = new Uint8Array(chunk.byteLength);
+        chunk.copyTo(data);
+        const description = buildAvcC(data) ?? meta.decoderConfig.description;
+        meta = { ...meta, decoderConfig: { ...meta.decoderConfig, description } };
+      }
+      muxer.addVideoChunk(chunk, meta);
+    },
+    error: (e) => (failure = e),
+  });
   venc.configure(vcfg);
 
   const canvas = document.createElement("canvas");
